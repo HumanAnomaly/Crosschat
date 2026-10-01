@@ -17,7 +17,7 @@ const ACCEPTED_FILES = "image/*,video/*,audio/*,.pdf,.doc,.docx,.xls,.xlsx,.txt,
 export default function Composer({ draft, setDraft, sending, uploading, onSend, onFile }: Props) {
   const fileRef = useRef<HTMLInputElement>(null);
   return (
-    <footer className="shrink-0 border-t border-base-content/10 p-3">
+    <footer className="shrink-0 border-t border-base-content/10 px-3 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
       <input
         ref={fileRef}
         type="file"
@@ -27,7 +27,7 @@ export default function Composer({ draft, setDraft, sending, uploading, onSend, 
         onChange={(e) => onFile(e.target.files?.[0])}
       />
       <form
-        className="flex items-center gap-2"
+        className="flex min-w-0 items-center gap-2"
         onSubmit={(e) => {
           e.preventDefault();
           onSend();
@@ -44,7 +44,7 @@ export default function Composer({ draft, setDraft, sending, uploading, onSend, 
           {uploading ? <span className="loading loading-spinner loading-sm" /> : <Paperclip size={18} />}
         </button>
         <input
-          className="input input-bordered min-h-[44px] flex-1 rounded-full"
+          className="input input-bordered min-h-[44px] w-full min-w-0 flex-1 rounded-full"
           placeholder="Write a message…"
           aria-label="Write a message"
           value={draft}
@@ -61,7 +61,7 @@ export default function Composer({ draft, setDraft, sending, uploading, onSend, 
           {sending ? <span className="loading loading-spinner loading-sm" /> : <Send size={18} />}
         </button>
       </form>
-      <div className="flex items-center justify-between px-1 pt-1.5 text-[11px] opacity-50">
+      <div className="hidden items-center justify-between px-1 pt-1.5 text-[11px] opacity-50 sm:flex">
         <span>
           Media up to {FILE_LIMIT_LABEL} · Enter to send · Right-click or long-press your message to delete it
         </span>

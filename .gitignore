@@ -22,3 +22,4 @@ apps/web/src/components/__tests__/
 apps/web/src/pages/__tests__/
 **/*.test.*
 scripts
+data

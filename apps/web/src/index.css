@@ -39,9 +39,23 @@
 }
 
 @layer components {
-  .btn-primary:hover {
+  .btn-primary,
+  .btn-primary:hover,
+  .btn-primary:active,
+  .btn-primary:focus-visible {
+    @apply text-primary-content;
     background-color: var(--cc-primary-hover);
     border-color: var(--cc-primary-hover);
+  }
+
+  .btn-primary:disabled {
+    @apply text-primary-content;
+    opacity: 0.4;
+  }
+
+  .btn-primary svg,
+  .btn-primary .loading-spinner {
+    flex-shrink: 0;
   }
 
   /* Soften outline strokes: full currentColor is too harsh in both themes */

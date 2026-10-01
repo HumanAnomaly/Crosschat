@@ -401,10 +401,10 @@ export default function ChatPage() {
 
   return (
     <div className="bg-base-200 text-base-content flex h-dvh flex-col overflow-hidden">
-      <div className="mx-auto flex w-full max-w-6xl flex-1 min-h-0 gap-4 p-3 sm:p-4">
+      <div className="mx-auto flex w-full max-w-6xl flex-1 min-h-0 gap-0 p-0 sm:gap-4 sm:p-4">
         <aside className="hidden w-[320px] shrink-0 overflow-y-auto pb-1 lg:block">{panel}</aside>
 
-        <main className="bg-base-100 flex min-w-0 flex-1 flex-col overflow-hidden rounded-2xl shadow-sm border border-base-300">
+        <main className="bg-base-100 flex min-w-0 flex-1 flex-col overflow-hidden border-0 shadow-none rounded-none sm:rounded-2xl sm:shadow-sm sm:border sm:border-base-300">
           <header className="flex h-16 shrink-0 items-center gap-3 border-b border-base-content/10 px-3 sm:px-4">
             <button
               className="btn btn-ghost btn-sm btn-circle lg:hidden"

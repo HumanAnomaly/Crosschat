@@ -1,6 +1,6 @@
 {
   "name": "crosschat",
-  "version": "1.6.4-beta.2",
+  "version": "1.6.8-beta.2",
   "description": "CrossChat is an open-source chat hub that lets anyone chat seamlessly across Telegram, Discord, and the web, without being tied to a single platform.",
   "author": "HumanAnomaly",
   "license": "MIT",
