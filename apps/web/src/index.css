@@ -1,0 +1,109 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+    -webkit-font-smoothing: antialiased;
+    /* Reserve scrollbar space so opening a <dialog> doesn't shift the page */
+    scrollbar-gutter: stable;
+  }
+
+  [data-theme="crosschat"] {
+    --cc-primary-hover: #09090b;
+    --cc-text-secondary: #64748b;
+    --cc-text-muted: #94a3b8;
+    --cc-border: #e2e8f0;
+  }
+
+  [data-theme="crosschat-dark"] {
+    --cc-primary-hover: #e4e4e7;
+    --cc-text-secondary: #a1a1aa;
+    --cc-text-muted: #71717a;
+    --cc-border: #27272a;
+  }
+
+  body {
+    @apply bg-base-200 text-base-content;
+    font-family: theme("fontFamily.sans");
+    font-feature-settings: "cv11", "ss01";
+  }
+
+  ::placeholder {
+    @apply text-base-content/50;
+  }
+
+  :focus-visible {
+    @apply outline-2 outline-offset-2 outline-primary;
+  }
+}
+
+@layer components {
+  .btn-primary:hover {
+    background-color: var(--cc-primary-hover);
+    border-color: var(--cc-primary-hover);
+  }
+
+  /* Soften outline strokes: full currentColor is too harsh in both themes */
+  .btn-outline {
+    border-color: color-mix(in oklab, currentColor 30%, transparent);
+  }
+  .btn-outline:hover {
+    border-color: color-mix(in oklab, currentColor 55%, transparent);
+  }
+
+  /* Chat bubbles: guarantee readable contrast in both themes */
+  .chat-bubble-primary {
+    @apply bg-primary text-primary-content;
+  }
+
+  [data-theme="crosschat"] .chat-bubble:not(.chat-bubble-primary) {
+    @apply bg-[#F1F5F9] text-[#0F172A];
+  }
+
+  [data-theme="crosschat-dark"] .chat-bubble:not(.chat-bubble-primary) {
+    @apply bg-[#18181B] text-[#FAFAFA];
+  }
+
+  /* Keep message links visible inside bubbles */
+  .chat-bubble .link {
+    @apply text-inherit underline;
+  }
+
+  /* Single scroll area for the chat: thin, stable, no layout shift */
+  .chat-scroll {
+    scrollbar-width: thin;
+    scrollbar-gutter: stable;
+    overscroll-behavior: contain;
+  }
+
+  .chat-scroll::-webkit-scrollbar {
+    width: 8px;
+  }
+
+  .chat-scroll::-webkit-scrollbar-thumb {
+    @apply bg-base-content/20 rounded-full;
+  }
+
+  .chat-scroll::-webkit-scrollbar-track {
+    background: transparent;
+  }
+}
+
+/* Instant theme switch: no color fade when data-theme changes. */
+*,
+*::before,
+*::after {
+  transition: none !important;
+}
+
+/* No button motion: daisyUI pops buttons on load and fades them on theme change. */
+.btn {
+  animation: none;
+  transition: none;
+}
+
+.btn:active:hover,
+.btn:active:focus {
+  transform: none;
+}

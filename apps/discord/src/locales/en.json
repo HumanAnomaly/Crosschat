@@ -1,0 +1,51 @@
+{
+  "buttons": {
+    "wired": "Wired",
+    "newCode": "New code",
+    "disconnect": "Disconnect"
+  },
+  "start": {
+    "connected": "This DM is already linked to the web. Use /status for details.",
+    "hello": "Hi. Use /wired to link your web account, or /help for commands."
+  },
+  "status": {
+    "wired": "Linked ✅\nAccount: {account}\nSince: {since}\nMessages: {total} ({fromWeb} from web, {fromDiscord} from here)\nLast activity: {last}",
+    "unwired": "Not linked.\nUse /wired to link your web account, or /help for commands.\nServer: reachable.",
+    "offlineWired": "Server unreachable, showing last known state: linked.\nThe link may have changed on the other side. Try /status again shortly.",
+    "offlineUnwired": "Server unreachable, showing last known state: not linked.\nTry /status again shortly."
+  },
+  "help": {
+    "text": "Commands:\n/start: link status and quick actions\n/status: full link info (account, messages, server)\n/wired [code]: link this DM (optionally pass the web code directly)\n/newcode: show a code to enter on the web\n/disconnect: close the link on both sides\n\nDelete one of YOUR DMs and the web copy disappears too (only your own messages can be removed, same rule as the web).\nYou can also just type the web code here after /wired.\nOne Discord user links to exactly one web account. Either side can disconnect."
+  },
+  "wired": {
+    "alreadyLinked": "This account is already linked to the web.",
+    "askCode": "Type the code from the web here (example WXYZ-1234), or use /newcode to show a code here and enter it on the web.",
+    "codeMessage": "Your code: {code}\nValid for {minutes} minutes. Enter it on the web to link.",
+    "linked": "Linked to {account} on the web ✅\nEverything here is forwarded both ways. /status for details.",
+    "unknownAccount": "your web account",
+    "invalidFormat": "Wrong code format. A valid example is WXYZ-1234.",
+    "unknownCode": "Unknown or expired code. Get a fresh code on the web and type it again here.",
+    "rejectedCode": "The code was rejected. Get a fresh code on the web and type it again here."
+  },
+  "disconnect": {
+    "done": "Disconnected on both sides. The web room is closed too. Use /wired to link again any time.",
+    "fromWeb": "Disconnected from the web. This DM no longer receives web messages. Use /wired to link again.",
+    "incomplete": "Could not reach the server, so the link may still be active and web messages may keep arriving. Try /disconnect again."
+  },
+  "media": {
+    "notLinked": "This account is not linked yet. Use /wired first.",
+    "linkExpired": "This link was closed on the other side. Use /wired to link again.",
+    "tooBigDownload": "That file is over 20MB, it cannot be downloaded.",
+    "tooBigForward": "That file is over 50MB, it cannot be forwarded.",
+    "unavailable": "Discord did not return that file. Please send it again.",
+    "downloadFailed": "Could not download that file from Discord. Please resend it.",
+    "unsupported": "That message type is not supported yet.",
+    "backendDown": "The backend is unreachable. Your message is kept, try sending it again shortly.",
+    "guildOnly": "Please DM the bot directly so the link stays 1:1. Server messages are not bridged."
+  },
+  "common": {
+    "rateLimited": "Too many requests. Wait a moment and try again.",
+    "rateLimitedAttempts": "Too many attempts. Wait a moment and try again.",
+    "backendDown": "The backend is unreachable. Try again shortly."
+  }
+}

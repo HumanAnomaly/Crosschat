@@ -1,0 +1,131 @@
+import cookieParser from "cookie-parser";
+import cors from "cors";
+import express, { type NextFunction, type Request, type Response } from "express";
+import fs from "node:fs";
+import { createServer } from "node:http";
+import path from "node:path";
+import { attachSession, createAuthRouter } from "./auth.js";
+import { config, allowedOrigins, repoRoot } from "./env.js";
+import { createConfigRouter } from "./config.js";
+import { createMediaRouter } from "./media.js";
+import { createMessagesRouter } from "./messages.js";
+import { createPairingRouter } from "./pairing.js";
+import { createTelegramRouter } from "./telegram.js";
+import { createDiscordRouter } from "./discord.js";
+import { attachSocket, setWebMessageHandler } from "./socket.js";
+import { notifyTelegram } from "./telegram-bridge.js";
+import { notifyDiscord } from "./discord-bridge.js";
+import { findConnectionById, updateMessagePlatformIds } from "./db.js";
+import { securityHeaders } from "./security.js";
+import { deleteExpiredCodes, deleteExpiredSessions } from "./db.js";
+
+const app = express();
+app.set("trust proxy", 1);
+app.disable("x-powered-by");
+app.use(securityHeaders);
+app.use(cors({ origin: allowedOrigins(), credentials: true }));
+app.use(cookieParser());
+app.post("/api/telegram/webhook", express.raw({ type: "*/*", limit: "1mb" }), async (req, res) => {
+  try {
+    const upstream = await fetch(`${config.telegramServiceUrl}/api/telegram/webhook`, {
+      method: "POST",
+      headers: {
+        "content-type": req.get("content-type") ?? "application/json",
+        "x-telegram-bot-api-secret-token": req.get("x-telegram-bot-api-secret-token") ?? "",
+      },
+      body: req.body as unknown as BodyInit,
+    });
+    res.status(upstream.status).send(Buffer.from(await upstream.arrayBuffer()));
+  } catch {
+    res.status(502).json({ error: "telegram service unreachable" });
+  }
+});
+
+const json1mb = express.json({ limit: "1mb" });
+app.use((req: Request, res: Response, next: NextFunction) => {
+  if (req.path === "/api/telegram/inbound" || req.path === "/api/discord/inbound") return next();
+  return json1mb(req, res, next);
+});
+app.use(attachSession);
+
+app.get("/api/health", (_req, res) => {
+  res.json({ ok: true });
+});
+
+app.use(createAuthRouter());
+app.use(createConfigRouter());
+app.use(createPairingRouter());
+app.use(createTelegramRouter());
+app.use(createDiscordRouter());
+app.use(createMediaRouter());
+app.use(createMessagesRouter());
+
+const webDist = path.join(repoRoot, "apps", "web", "dist");
+if (fs.existsSync(webDist)) {
+  app.use(express.static(webDist, { maxAge: "1h", index: false }));
+  app.get(/^(?!\/api\/|\/media\/|\/socket\.io\/).*/, (_req, res) => {
+    res.sendFile(path.join(webDist, "index.html"));
+  });
+}
+
+app.use((err: unknown, _req: Request, res: Response, _next: NextFunction) => {
+  const e = err as { status?: number; type?: string };
+  if (e?.type === "entity.too.large") {
+    res.status(413).json({ error: "payload too large" });
+    return;
+  }
+  if (e?.status === 400) {
+    res.status(400).json({ error: "invalid json" });
+    return;
+  }
+  console.error("unhandled error", err);
+  if (!res.headersSent) res.status(500).json({ error: "internal error" });
+});
+
+setInterval(() => {
+  try {
+    deleteExpiredSessions();
+    deleteExpiredCodes();
+  } catch (err) {
+    console.error("cleanup failed", err);
+  }
+}, 5 * 60 * 1000).unref?.();
+
+const httpServer = createServer(app);
+attachSocket(httpServer);
+setWebMessageHandler((connectionId, message) => {
+  const connection = findConnectionById(connectionId);
+  if ((connection?.platform_id ?? "telegram") === "discord") {
+    notifyDiscord(connectionId, message)
+      .then((r) => {
+        if (r?.discordMessageId) {
+          try {
+            updateMessagePlatformIds(message.id, { discordMsgId: r.discordMessageId });
+          } catch {
+
+          }
+        }
+      })
+      .catch((err) => {
+        console.error("forward to discord failed", err);
+      });
+    return;
+  }
+  notifyTelegram(connectionId, message)
+    .then((r) => {
+      if (r?.telegramMessageId) {
+        try {
+          updateMessagePlatformIds(message.id, { telegramMsgId: r.telegramMessageId });
+        } catch {
+
+        }
+      }
+    })
+    .catch((err) => {
+      console.error("forward to telegram failed", err);
+    });
+});
+
+httpServer.listen(config.port, () => {
+  process.stdout.write(`realtime listening on :${config.port}\n`);
+});

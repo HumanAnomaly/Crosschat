@@ -1,0 +1,31 @@
+{
+  "name": "crosschat",
+  "version": "1.6.4-beta.2",
+  "description": "CrossChat is an open-source chat hub that lets anyone chat seamlessly across Telegram, Discord, and the web, without being tied to a single platform.",
+  "author": "HumanAnomaly",
+  "license": "MIT",
+  "private": true,
+  "packageManager": "pnpm@10.0.0",
+  "scripts": {
+    "dev": "turbo run dev",
+    "start": "turbo run start --filter=@crosschat/realtime --filter=@crosschat/telegram --filter=@crosschat/discord",
+    "build": "turbo run build",
+    "typecheck": "turbo run typecheck",
+    "test": "pnpm build && pnpm test:core && pnpm test:smoke && pnpm test:realtime && pnpm test:media && pnpm test:bridge && pnpm test:delete && pnpm test:pair && pnpm test:race && pnpm test:web",
+    "test:core": "node --test test/core.test.mjs test/locales.test.mjs test/deadcode.test.mjs test/secrets.test.mjs test/platforms.test.mjs",
+    "test:smoke": "node test/smoke.mjs",
+    "test:realtime": "node test/realtime.test.mjs",
+    "test:media": "node --test test/media-serve.test.mjs test/web-upload.test.mjs",
+    "test:bridge": "node test/bridge.test.mjs && node test/bridge-isolation.test.mjs",
+    "test:delete": "node test/message-delete.test.mjs",
+    "test:pair": "node test/pair-platform.test.mjs",
+    "test:race": "node test/race.test.mjs",
+    "test:web": "pnpm --filter @crosschat/web test",
+    "db:migrate": "turbo run db:migrate",
+    "generate:secrets": "node scripts/generate-secrets.mjs"
+  },
+  "devDependencies": {
+    "turbo": "^2.5.4",
+    "typescript": "^5.9.2"
+  }
+}

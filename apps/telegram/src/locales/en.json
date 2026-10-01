@@ -1,0 +1,56 @@
+{
+  "buttons": {
+    "disconnect": "Disconnect",
+    "newCode": "New code",
+    "wired": "Wired"
+  },
+  "common": {
+    "backendDown": "The backend is unreachable. Try again shortly.",
+    "rateLimited": "Too many requests. Wait a moment and try again.",
+    "rateLimitedAttempts": "Too many attempts. Wait a moment and try again."
+  },
+  "delete": {
+    "done": "Deleted on both sides. The web copy is gone too.",
+    "noReply": "Reply to the message you want to delete with /delete.",
+    "notFound": "That message is not in the bridged room (it may already be deleted).",
+    "forbidden": "You can only delete your own messages. The web side removes its own the same way."
+  },
+  "disconnect": {
+    "done": "Disconnected on both sides. The web room is closed too. Press Wired to link again any time.",
+    "fromWeb": "Disconnected from the web. This chat no longer receives web messages. Press Wired to link again.",
+    "incomplete": "Could not reach the server, so the link may still be active and web messages may keep arriving. Try Disconnect again."
+  },
+  "help": {
+    "text": "Commands:\n/start: link status and quick actions\n/status: full link info (account, messages, server)\n/delete: reply to one of YOUR messages to delete it on both sides\n\nButtons:\nWired: link this chat (enter a web code)\nNew code: show a code to enter on the web\nDisconnect: close the link on both sides\n\nOne chat links to exactly one web account. Either side can disconnect. Note: deleting a message directly in the Telegram app cannot be seen by the bot, so use /delete or delete it from the web instead."
+  },
+  "media": {
+    "backendDown": "The backend is unreachable. Your message is kept, try sending it again shortly.",
+    "downloadFailed": "Could not download that file from Telegram. Please resend it.",
+    "linkExpired": "This link was closed on the other side. Press Wired to link again.",
+    "notLinked": "This account is not linked yet. Press Wired first.",
+    "tooBigDownload": "That file is over 20MB, the Bot API cannot download it.",
+    "tooBigForward": "That file is over 50MB, it cannot be forwarded.",
+    "unavailable": "Telegram did not return that file. Please send it again.",
+    "unsupported": "That message type is not supported yet."
+  },
+  "start": {
+    "connected": "This chat is already linked to the web. Use /status for details.",
+    "hello": "Hi. Press Wired to link your web account, or /help for commands."
+  },
+  "status": {
+    "offlineUnwired": "Server unreachable, showing last known state: not linked.\nTry /status again shortly.",
+    "offlineWired": "Server unreachable, showing last known state: linked.\nThe link may have changed on the other side. Try /status again shortly.",
+    "unwired": "Not linked.\nPress Wired to link your web account, or /help for commands.\nServer: reachable.",
+    "wired": "Linked ✅\nAccount: {account}\nSince: {since}\nMessages: {total} ({fromWeb} from web, {fromTelegram} from here)\nLast activity: {last}\nServer: reachable ({mode} mode)"
+  },
+  "wired": {
+    "alreadyLinked": "This account is already linked to the web.",
+    "askCode": "Type the code from the web (example WXYZ-1234), or press New code to show a code here and enter it on the web.",
+    "codeMessage": "Your code: {code}\nValid for {minutes} minutes. Enter it on the web to link.",
+    "invalidFormat": "Wrong code format. A valid example is WXYZ-1234.",
+    "linked": "Linked to {account} on the web ✅\nEverything here is forwarded both ways. /status for details.",
+    "rejectedCode": "The code was rejected. Get a fresh code on the web and type it again here.",
+    "unknownAccount": "your web account",
+    "unknownCode": "Unknown or expired code. Get a fresh code on the web and type it again here."
+  }
+}
