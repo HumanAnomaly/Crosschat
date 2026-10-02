@@ -69,6 +69,15 @@ export const config = {
   discordServiceUrl: (
     process.env.DISCORD_URL ?? "http://localhost:8365"
   ).replace(/\/+$/, ""),
+  whatsappSession: (process.env.WHATSAPP_SESSION ?? "wa").trim() || "wa",
+  whatsappDataDir: process.env.WHATSAPP_DATA_DIR ?? "./data/whatsapp",
+  whatsappWebhookSecret: (
+    process.env.WHATSAPP_WEBHOOK_SECRET ?? process.env.TELEGRAM_WEBHOOK_SECRET ?? ""
+  ),
+  whatsappServiceUrl: (
+    process.env.WHATSAPP_URL ?? "http://localhost:8366"
+  ).replace(/\/+$/, ""),
+  whatsappEntryUrl: (process.env.WHATSAPP_ENTRY_URL ?? "").trim(),
   telegramEntryUrl: (process.env.TELEGRAM_BOT_URL ?? "https://t.me/trycrosschat_bot").trim(),
   discordEntryUrl: (process.env.DISCORD_INVITE_URL ?? "https://discord.com/oauth2/authorize").trim(),
   pairCodeTtlMs: Number(process.env.PAIR_CODE_TTL_SEC ?? 300) * 1000,

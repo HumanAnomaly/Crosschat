@@ -56,6 +56,7 @@ export function getLoginUrl(): string {
 export interface AppConfig {
   telegramEntryUrl: string;
   discordEntryUrl: string;
+  whatsappEntryUrl?: string;
 }
 
 export async function getAppConfig(): Promise<AppConfig> {
@@ -115,6 +116,7 @@ export interface ConnectionStats {
     fromWeb: number;
     fromTelegram: number;
     fromDiscord: number;
+    fromWhatsapp?: number;
     lastMessageAt: string | null;
   };
 }

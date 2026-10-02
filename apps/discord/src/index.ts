@@ -7,6 +7,7 @@ import {
   Partials,
 } from "discord.js";
 import { discordConfig } from "./config.js";
+import { createLogger, printBanner } from "@crosschat/core";
 import { translate } from "./i18n.js";
 import { handleDeleted, handleInbound } from "./bridge.js";
 import { deploySlashCommands } from "./deploy-commands.js";
@@ -25,9 +26,13 @@ import {
 } from "./wired.js";
 
 if (!discordConfig.token) {
-  console.error("DISCORD_BOT_TOKEN is empty. Fill in the env file and restart.");
-  process.exit(1);
+  createLogger("discord").warn("DISCORD_BOT_TOKEN is empty. Discord treated as not installed; other platforms keep running.");
+  process.exit(0);
 }
+
+const log = createLogger("discord");
+
+let dcActive = true;
 
 const client = new Client({
   intents: [
@@ -82,20 +87,20 @@ async function reconcile(userId: string): Promise<LinkStatus | null> {
 }
 
 client.on(Events.ClientReady, () => {
-  process.stdout.write(`discord service logged in as ${client.user?.tag}\n`);
+  log.info(`discord service logged in as ${client.user?.tag}\n`);
   const derivedId = client.user?.id ?? "";
   const configuredId = discordConfig.clientId;
   const effectiveId = configuredId || derivedId;
   if (!effectiveId) {
-    console.error("slash deploy skipped: DISCORD_CLIENT_ID is empty");
+    log.error("slash deploy skipped: DISCORD_CLIENT_ID is empty");
     return;
   }
   if (configuredId && configuredId !== derivedId) {
-    console.error(`slash deploy skipped: DISCORD_CLIENT_ID ${configuredId} != logged-in ${derivedId}`);
+    log.error(`slash deploy skipped: DISCORD_CLIENT_ID ${configuredId} != logged-in ${derivedId}`);
     return;
   }
   deploySlashCommands(effectiveId).catch((err) => {
-    console.error("slash deploy failed:", err);
+    log.error("slash deploy failed:", err);
   });
 });
 
@@ -105,7 +110,7 @@ client.on(Events.MessageDelete, (message) => {
       if (message.author?.bot) return;
       await handleDeleted(message.author?.id ?? null, message.id);
     } catch (err) {
-      console.error("discord delete failed:", err);
+      log.error("discord delete failed:", err);
     }
   })();
 });
@@ -135,7 +140,7 @@ client.on(Events.MessageCreate, (message) => {
       if (await handleCodeInput(target, raw)) return;
       await handleInbound(message);
     } catch (err) {
-      console.error("discord update failed:", err);
+      log.error("discord update failed:", err);
     }
   })();
 });
@@ -247,7 +252,7 @@ client.on(Events.InteractionCreate, (interaction) => {
           break;
       }
     } catch (err) {
-      console.error("discord interaction failed:", err);
+      log.error("discord interaction failed:", err);
     }
   })();
 });
@@ -267,7 +272,7 @@ const server = createServer((req: IncomingMessage, res: ServerResponse) => {
     }
     if (req.method === "GET" && (req.url === "/health" || req.url === "/")) {
       res.writeHead(200, { "content-type": "application/json" });
-      res.end(JSON.stringify({ ok: true, platform: "discord" }));
+      res.end(JSON.stringify({ ok: true, platform: "discord", active: dcActive }));
       return;
     }
     res.writeHead(404);
@@ -276,8 +281,9 @@ const server = createServer((req: IncomingMessage, res: ServerResponse) => {
 });
 
 server.listen(discordConfig.port, () => {
-  process.stdout.write(`discord service on :${discordConfig.port}\n`);
+  printBanner("discord", [["port", String(discordConfig.port)]]);
   client.login(discordConfig.token).catch((err) => {
-    console.error("discord login failed:", err);
+    dcActive = false;
+    log.error("discord login failed, discord inactive", err);
   });
 });

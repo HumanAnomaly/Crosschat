@@ -1,14 +1,14 @@
 {
   "name": "crosschat",
-  "version": "1.6.8-beta.2",
-  "description": "CrossChat is an open-source chat hub that lets anyone chat seamlessly across Telegram, Discord, and the web, without being tied to a single platform.",
+  "version": "1.7.1-beta.1",
+  "description": "CrossChat is an open-source chat hub that lets anyone chat seamlessly across Telegram, Discord, WhatsApp, and the web, without being tied to a single platform.",
   "author": "HumanAnomaly",
   "license": "MIT",
   "private": true,
   "packageManager": "pnpm@10.0.0",
   "scripts": {
     "dev": "turbo run dev",
-    "start": "turbo run start --filter=@crosschat/realtime --filter=@crosschat/telegram --filter=@crosschat/discord",
+    "start": "turbo run start --filter=@crosschat/realtime --filter=@crosschat/telegram --filter=@crosschat/discord --filter=@crosschat/whatsapp",
     "build": "turbo run build",
     "typecheck": "turbo run typecheck",
     "test": "pnpm build && pnpm test:core && pnpm test:smoke && pnpm test:realtime && pnpm test:media && pnpm test:bridge && pnpm test:delete && pnpm test:pair && pnpm test:race && pnpm test:web",

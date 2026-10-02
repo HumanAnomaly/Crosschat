@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 export * from "./platforms.js";
+export * from "./cli.js";
 
 export const pairingCodeSchema = z
   .string()
@@ -27,7 +28,7 @@ export const messageKindSchema = z.enum([
   "sticker",
 ]);
 
-const senderSchema = z.enum(["web", "telegram", "discord"]);
+const senderSchema = z.enum(["web", "telegram", "discord", "whatsapp"]);
 
 export const chatMessageSchema = z.object({
   id: z.string().uuid(),
@@ -91,6 +92,13 @@ export function normalizeDiscordUsername(input: unknown): string | null {
   if (typeof input !== "string") return null;
   const v = input.trim().replace(/^@+/, "").toLowerCase();
   return /^[a-z0-9_.]{2,32}$/.test(v) ? v : null;
+}
+
+/** WhatsApp: digits with country code (8-15 digits, leading + optional). */
+export function normalizeWhatsappUsername(input: unknown): string | null {
+  if (typeof input !== "string") return null;
+  const v = input.trim().replace(/^\+/, "").replace(/[\s\-()]/g, "");
+  return /^[0-9]{8,15}$/.test(v) ? v : null;
 }
 
 /** Accept either platform handle; Telegram rules first, then Discord. */

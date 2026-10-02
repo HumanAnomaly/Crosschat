@@ -5,10 +5,12 @@ import { config } from "./env.js";
 export function isBotRequest(req: Request): boolean {
   const telegram = config.telegramWebhookSecret;
   const discord = (config as { discordWebhookSecret?: string }).discordWebhookSecret ?? "";
+  const whatsapp = (config as { whatsappWebhookSecret?: string }).whatsappWebhookSecret ?? "";
   const got = req.get("x-bot-secret") ?? "";
   if (!got) return false;
   if (telegram && got === telegram) return true;
   if (discord && got === discord) return true;
+  if (whatsapp && got === whatsapp) return true;
   return false;
 }
 

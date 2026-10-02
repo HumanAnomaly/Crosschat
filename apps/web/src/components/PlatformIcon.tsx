@@ -1,11 +1,12 @@
 import { MessageCircle } from "lucide-react";
-import { SiDiscord, SiTelegram } from "react-icons/si";
+import { SiDiscord, SiTelegram, SiWhatsapp } from "react-icons/si";
 import type { IconType } from "react-icons";
 import type { Platform } from "@crosschat/core";
 
 const BRANDS: Record<string, IconType> = {
   telegram: SiTelegram,
   discord: SiDiscord,
+  whatsapp: SiWhatsapp,
 };
 
 interface PlatformIconProps {

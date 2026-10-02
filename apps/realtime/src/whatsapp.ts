@@ -22,17 +22,17 @@ const inboundSchema = z.object({
   filename: z.string().max(160).optional(),
   mime: z.string().max(120).optional(),
   size: z.number().max(50 * 1024 * 1024).optional(),
-  discordUsername: z.string().max(37).optional(),
+  whatsappUsername: z.string().max(32).optional(),
   telegramUsername: z.string().max(33).optional(),
-  platformMsgId: z.string().max(64).optional(),
-  discordMessageId: z.string().max(64).optional(),
+  platformMsgId: z.string().max(128).optional(),
+  whatsappMessageId: z.string().max(128).optional(),
 });
 
-export function createDiscordRouter(): Router {
+export function createWhatsappRouter(): Router {
   const router = Router();
 
   router.post(
-    "/api/discord/inbound",
+    "/api/whatsapp/inbound",
     express.json({ limit: "30mb" }),
     (req: Request, res: Response) => {
       if (!isBotRequest(req)) {
@@ -44,17 +44,17 @@ export function createDiscordRouter(): Router {
         res.status(400).json({ error: "invalid payload" });
         return;
       }
-      const connection = findConnectionByPlatformChat(parsed.data.chatId, "discord");
+      const connection = findConnectionByPlatformChat(parsed.data.chatId, "whatsapp");
       if (!connection) {
         res.status(404).json({ error: "connection not found" });
         return;
       }
-      const username = parsed.data.discordUsername ?? parsed.data.telegramUsername;
+      const username = parsed.data.whatsappUsername ?? parsed.data.telegramUsername;
       if (username && username !== connection.telegram_username) {
         try {
-          updateConnectionUsername(parsed.data.chatId, username, "discord");
+          updateConnectionUsername(parsed.data.chatId, username, "whatsapp");
         } catch (err) {
-          console.error("discord username sync failed", err);
+          console.error("whatsapp username sync failed", err);
         }
       }
       let mediaPath: string | null = null;
@@ -84,14 +84,14 @@ export function createDiscordRouter(): Router {
         saved = insertMessage({
           id,
           connectionId: connection.id,
-          sender: "discord",
+          sender: "whatsapp",
           kind: parsed.data.kind,
           text: parsed.data.text?.slice(0, 4000) ?? null,
           mediaPath,
           mime: parsed.data.mime ?? null,
           size,
           createdAt: Date.now(),
-          discordMsgId: parsed.data.platformMsgId ?? parsed.data.discordMessageId ?? null,
+          whatsappMsgId: parsed.data.platformMsgId ?? parsed.data.whatsappMessageId ?? null,
         });
       } catch (err) {
         const code = (err as { code?: unknown })?.code;

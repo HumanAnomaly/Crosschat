@@ -12,12 +12,17 @@ import { createMessagesRouter } from "./messages.js";
 import { createPairingRouter } from "./pairing.js";
 import { createTelegramRouter } from "./telegram.js";
 import { createDiscordRouter } from "./discord.js";
+import { createWhatsappRouter } from "./whatsapp.js";
 import { attachSocket, setWebMessageHandler } from "./socket.js";
 import { notifyTelegram } from "./telegram-bridge.js";
 import { notifyDiscord } from "./discord-bridge.js";
+import { notifyWhatsapp } from "./whatsapp-bridge.js";
 import { findConnectionById, updateMessagePlatformIds } from "./db.js";
+import { createLogger, printBanner } from "@crosschat/core";
 import { securityHeaders } from "./security.js";
 import { deleteExpiredCodes, deleteExpiredSessions } from "./db.js";
+
+const log = createLogger("realtime");
 
 const app = express();
 app.set("trust proxy", 1);
@@ -43,7 +48,7 @@ app.post("/api/telegram/webhook", express.raw({ type: "*/*", limit: "1mb" }), as
 
 const json1mb = express.json({ limit: "1mb" });
 app.use((req: Request, res: Response, next: NextFunction) => {
-  if (req.path === "/api/telegram/inbound" || req.path === "/api/discord/inbound") return next();
+  if (req.path === "/api/telegram/inbound" || req.path === "/api/discord/inbound" || req.path === "/api/whatsapp/inbound") return next();
   return json1mb(req, res, next);
 });
 app.use(attachSession);
@@ -57,6 +62,7 @@ app.use(createConfigRouter());
 app.use(createPairingRouter());
 app.use(createTelegramRouter());
 app.use(createDiscordRouter());
+app.use(createWhatsappRouter());
 app.use(createMediaRouter());
 app.use(createMessagesRouter());
 
@@ -78,7 +84,7 @@ app.use((err: unknown, _req: Request, res: Response, _next: NextFunction) => {
     res.status(400).json({ error: "invalid json" });
     return;
   }
-  console.error("unhandled error", err);
+  log.error("unhandled error", err);
   if (!res.headersSent) res.status(500).json({ error: "internal error" });
 });
 
@@ -87,7 +93,7 @@ setInterval(() => {
     deleteExpiredSessions();
     deleteExpiredCodes();
   } catch (err) {
-    console.error("cleanup failed", err);
+    log.error("cleanup failed", err);
   }
 }, 5 * 60 * 1000).unref?.();
 
@@ -101,13 +107,29 @@ setWebMessageHandler((connectionId, message) => {
         if (r?.discordMessageId) {
           try {
             updateMessagePlatformIds(message.id, { discordMsgId: r.discordMessageId });
-          } catch {
-
+          } catch (err) {
+            log.error("discord id persist failed", err);
           }
         }
       })
       .catch((err) => {
-        console.error("forward to discord failed", err);
+        log.error("forward to discord failed", err);
+      });
+    return;
+  }
+  if ((connection?.platform_id ?? "telegram") === "whatsapp") {
+    notifyWhatsapp(connectionId, message)
+      .then((r) => {
+        if (r?.whatsappMessageId) {
+          try {
+            updateMessagePlatformIds(message.id, { whatsappMsgId: r.whatsappMessageId });
+          } catch (err) {
+            log.error("whatsapp id persist failed", err);
+          }
+        }
+      })
+      .catch((err) => {
+        log.error("forward to whatsapp failed", err);
       });
     return;
   }
@@ -116,16 +138,16 @@ setWebMessageHandler((connectionId, message) => {
       if (r?.telegramMessageId) {
         try {
           updateMessagePlatformIds(message.id, { telegramMsgId: r.telegramMessageId });
-        } catch {
-
+        } catch (err) {
+          log.error("telegram id persist failed", err);
         }
       }
     })
     .catch((err) => {
-      console.error("forward to telegram failed", err);
+      log.error("forward to telegram failed", err);
     });
 });
 
 httpServer.listen(config.port, () => {
-  process.stdout.write(`realtime listening on :${config.port}\n`);
+  printBanner("realtime", [["port", String(config.port)]]);
 });

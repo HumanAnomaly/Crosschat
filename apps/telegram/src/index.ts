@@ -1,5 +1,6 @@
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
 import { Bot } from "grammy";
+import { createLogger, printBanner } from "@crosschat/core";
 import { telegramConfig } from "./config.js";
 import { translate } from "./i18n.js";
 import {
@@ -16,10 +17,14 @@ import {
 import { handleDeleteCommand, handleInbound } from "./bridge.js";
 import { createNotifyHandler, createLinkedHandler, handleDisconnect } from "./disconnect.js";
 
+const log = createLogger("telegram");
+
 if (!telegramConfig.token) {
-  console.error("TELEGRAM_BOT_TOKEN is empty. Fill in the env file and restart.");
-  process.exit(1);
+  log.warn("TELEGRAM_BOT_TOKEN is empty. Telegram treated as not installed; other platforms keep running.");
+  process.exit(0);
 }
+
+let tgActive = true;
 
 const bot = new Bot(telegramConfig.token);
 
@@ -116,7 +121,7 @@ bot.command("delete", async (ctx) => {
   try {
     await handleDeleteCommand(ctx);
   } catch (err) {
-    console.error("delete failed:", err);
+    log.error("delete failed", err);
   }
 });
 
@@ -129,11 +134,11 @@ bot.on("message", async (ctx) => {
     }
     await handleInbound(ctx);
   } catch (err) {
-    console.error("update failed:", err);
+    log.error("update failed", err);
   }
 });
 
-bot.catch((err) => console.error("bot error:", err.message));
+bot.catch((err) => log.error("bot error", err.message));
 
 const notifyHandler = createNotifyHandler(bot);
 const linkedHandler = createLinkedHandler(bot);
@@ -168,7 +173,7 @@ async function handleWebhook(req: IncomingMessage, res: ServerResponse): Promise
     res.writeHead(200);
     res.end("ok");
   } catch (err) {
-    console.error("webhook failed:", err);
+    log.error("webhook failed", err);
     res.writeHead(400);
     res.end("bad request");
   }
@@ -195,7 +200,7 @@ const server = createServer((req, res) => {
     }
     if (req.method === "GET" && (req.url === "/health" || req.url === "/")) {
       res.writeHead(200, { "content-type": "application/json" });
-      res.end(JSON.stringify({ ok: true, mode: telegramConfig.mode }));
+      res.end(JSON.stringify({ ok: true, platform: "telegram", active: tgActive, mode: telegramConfig.mode }));
       return;
     }
     res.writeHead(404);
@@ -205,7 +210,21 @@ const server = createServer((req, res) => {
 
 server.listen(telegramConfig.port, () => {
   void (async () => {
-    process.stdout.write(`telegram service on :${telegramConfig.port} mode=${telegramConfig.mode}\n`);
+    printBanner("telegram", [
+      ["port", String(telegramConfig.port)],
+      ["mode", telegramConfig.mode],
+    ]);
+    try {
+      await bot.api.setMyCommands([
+        { command: "start", description: "Link status and quick actions" },
+        { command: "status", description: "Full link info (account, messages, server)" },
+        { command: "help", description: "List all commands" },
+        { command: "delete", description: "Reply to one of YOUR messages to delete it both sides" },
+      ]);
+      log.success("command menu registered.");
+    } catch (err) {
+      log.error("setMyCommands failed (menu button may miss commands)", err);
+    }
     if (telegramConfig.mode === "webhook") {
       try {
         const extra: { secret_token?: string; drop_pending_updates?: boolean } = {
@@ -213,18 +232,27 @@ server.listen(telegramConfig.port, () => {
         };
         if (telegramConfig.webhookSecret) extra.secret_token = telegramConfig.webhookSecret;
         await bot.api.setWebhook(`${telegramConfig.appUrlProd}/api/telegram/webhook`, extra);
-        process.stdout.write(`webhook registered: ${telegramConfig.appUrlProd}/api/telegram/webhook\n`);
+        log.success(`webhook registered: ${telegramConfig.appUrlProd}/api/telegram/webhook`);
       } catch (err) {
-        console.error("setWebhook failed:", err);
+        log.error("setWebhook failed", err);
       }
     } else {
       try {
         await bot.api.deleteWebhook({ drop_pending_updates: true });
       } catch (err) {
-        console.error("deleteWebhook failed:", err);
+        log.error("deleteWebhook failed", err);
       }
-      void bot.start();
-      process.stdout.write("polling started.\n");
+      void bot.start().then(
+        () => {
+          tgActive = false;
+          log.warn("polling stopped, telegram inactive.");
+        },
+        (err: unknown) => {
+          tgActive = false;
+          log.error("polling crashed (e.g. another instance is polling the same token). Telegram inactive, others keep running.", err);
+        },
+      );
+      log.success("polling started.");
     }
   })();
 });

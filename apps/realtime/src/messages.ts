@@ -15,15 +15,18 @@ import { isBotRequest, resolveStoredMediaPath } from "./security.js";
 import { emitToConnection } from "./socket.js";
 import { deleteTelegramMessage } from "./telegram-bridge.js";
 import { deleteDiscordMessage } from "./discord-bridge.js";
+import { deleteWhatsappMessage } from "./whatsapp-bridge.js";
 
 const botDeleteSchema = z.object({
   chatId: z.string().min(1).max(64).optional(),
   telegramChatId: z.string().min(1).max(64).optional(),
   discordChatId: z.string().min(1).max(64).optional(),
-  platformMsgId: z.string().min(1).max(64).optional(),
+  whatsappChatId: z.string().min(1).max(128).optional(),
+  platformMsgId: z.string().min(1).max(128).optional(),
   telegramMessageId: z.string().min(1).max(64).optional(),
   discordMessageId: z.string().min(1).max(64).optional(),
-  platformId: z.enum(["telegram", "discord"]).optional(),
+  whatsappMessageId: z.string().min(1).max(128).optional(),
+  platformId: z.enum(["telegram", "discord", "whatsapp"]).optional(),
 });
 
 function removeMediaFile(mediaPath: string | null): void {
@@ -43,6 +46,7 @@ export async function eraseMessageCompletely(row: {
   media_path: string | null;
   telegram_msg_id: string | null;
   discord_msg_id: string | null;
+  whatsapp_msg_id?: string | null;
 }): Promise<void> {
   const connection = findConnectionById(row.connection_id);
   if (connection && row.telegram_msg_id) {
@@ -57,6 +61,13 @@ export async function eraseMessageCompletely(row: {
       await deleteDiscordMessage(connection.telegram_chat_id, row.discord_msg_id);
     } catch (err) {
       console.error("erase: discord delete failed", err);
+    }
+  }
+  if (connection && row.whatsapp_msg_id && (connection.platform_id ?? "telegram") === "whatsapp") {
+    try {
+      await deleteWhatsappMessage(connection.telegram_chat_id, row.whatsapp_msg_id);
+    } catch (err) {
+      console.error("erase: whatsapp delete failed", err);
     }
   }
   deleteMessageById(row.id);
@@ -99,7 +110,7 @@ export function createMessagesRouter(): Router {
     );
   });
 
-  const handleBotDelete = (platform: "telegram" | "discord") => (req: Request, res: Response) => {
+  const handleBotDelete = (platform: "telegram" | "discord" | "whatsapp") => (req: Request, res: Response) => {
     if (!isBotRequest(req)) {
       res.status(401).json({ error: "unauthorized" });
       return;
@@ -111,7 +122,7 @@ export function createMessagesRouter(): Router {
     }
     const platformMsgId =
       parsed.data.platformMsgId ??
-      (platform === "telegram" ? parsed.data.telegramMessageId : parsed.data.discordMessageId);
+      (platform === "telegram" ? parsed.data.telegramMessageId : platform === "discord" ? parsed.data.discordMessageId : parsed.data.whatsappMessageId);
     if (!platformMsgId) {
       res.status(400).json({ error: "platform message id required" });
       return;
@@ -121,7 +132,7 @@ export function createMessagesRouter(): Router {
       res.json({ ok: true, deleted: false });
       return;
     }
-    const chatId = parsed.data.chatId ?? parsed.data.telegramChatId ?? parsed.data.discordChatId;
+    const chatId = parsed.data.chatId ?? parsed.data.telegramChatId ?? parsed.data.discordChatId ?? parsed.data.whatsappChatId;
     let scoped = candidates;
     if (chatId) {
       const inChat = candidates.filter((r) => {
@@ -135,7 +146,7 @@ export function createMessagesRouter(): Router {
       scoped = inChat;
     }
 
-    const expectedSender = platform === "telegram" ? "telegram" : "discord";
+    const expectedSender = platform === "telegram" ? "telegram" : platform === "discord" ? "discord" : "whatsapp";
     const own = scoped.filter((r) => r.sender === expectedSender);
     if (own.length === 0) {
       res.status(403).json({ error: "you can only delete your own messages" });
@@ -155,6 +166,7 @@ export function createMessagesRouter(): Router {
 
   router.post("/api/telegram/delete", handleBotDelete("telegram"));
   router.post("/api/discord/delete", handleBotDelete("discord"));
+  router.post("/api/whatsapp/delete", handleBotDelete("whatsapp"));
   router.get("/api/connection/stats", requireAuth, (req: Request, res: Response) => {
     const q = typeof req.query.connectionId === "string" ? req.query.connectionId : "";
     const row = q ? findConnectionById(q) : findConnectionByUser(req.user!.id);
@@ -173,6 +185,7 @@ export function createMessagesRouter(): Router {
         fromWeb: stats.fromWeb,
         fromTelegram: stats.fromTelegram,
         fromDiscord: stats.fromDiscord ?? 0,
+        fromWhatsapp: stats.fromWhatsapp ?? 0,
         lastMessageAt: stats.lastMessageAt ? new Date(stats.lastMessageAt).toISOString() : null,
       },
     });
@@ -183,7 +196,7 @@ export function createMessagesRouter(): Router {
       res.status(401).json({ error: "unauthorized" });
       return;
     }
-    const platform = req.query.platform === "discord" ? "discord" : "telegram";
+    const platform = req.query.platform === "discord" ? "discord" : req.query.platform === "whatsapp" ? "whatsapp" : "telegram";
     const platformMsgId = typeof req.query.platformMsgId === "string" ? req.query.platformMsgId : "";
     if (!platformMsgId) {
       res.status(400).json({ error: "platformMsgId required" });

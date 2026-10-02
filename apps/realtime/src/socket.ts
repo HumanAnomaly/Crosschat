@@ -53,7 +53,7 @@ function toChatMessage(row: {
   created_at: number;
 }): ChatMessage {
   const sender: ChatMessage["sender"] =
-    row.sender === "telegram" ? "telegram" : row.sender === "discord" ? "discord" : "web";
+    row.sender === "telegram" ? "telegram" : row.sender === "discord" ? "discord" : row.sender === "whatsapp" ? "whatsapp" : "web";
   return {
     id: row.id,
     connectionId: row.connection_id,

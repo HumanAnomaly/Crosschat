@@ -4,6 +4,7 @@ import {
   makePairingCode,
   normalizeDiscordUsername,
   normalizeTelegramUsername,
+  normalizeWhatsappUsername,
   parsePairingCode,
 } from "@crosschat/core";
 import { requireAuth } from "./auth.js";
@@ -57,41 +58,54 @@ const claimSchema = z.object({
   code: z.string().min(1).max(16),
   telegramChatId: z.string().min(1).max(64).optional(),
   discordChatId: z.string().min(1).max(64).optional(),
+  whatsappChatId: z.string().min(1).max(64).optional(),
   chatId: z.string().min(1).max(64).optional(),
-  platformId: z.enum(["telegram", "discord"]).optional(),
+  platformId: z.enum(["telegram", "discord", "whatsapp"]).optional(),
   telegramUsername: z.string().min(1).max(34).optional(),
   discordUsername: z.string().min(1).max(37).optional(),
+  whatsappUsername: z.string().min(1).max(32).optional(),
 });
 
 const createSchema = z.object({
   code: z.string().min(1).max(16),
   telegramChatId: z.string().min(1).max(64).optional(),
   discordChatId: z.string().min(1).max(64).optional(),
+  whatsappChatId: z.string().min(1).max(64).optional(),
   chatId: z.string().min(1).max(64).optional(),
-  platformId: z.enum(["telegram", "discord"]).optional(),
+  platformId: z.enum(["telegram", "discord", "whatsapp"]).optional(),
   telegramUsername: z.string().min(1).max(34).optional(),
   discordUsername: z.string().min(1).max(37).optional(),
+  whatsappUsername: z.string().min(1).max(32).optional(),
   ttlSec: z.number().min(60).max(600).optional(),
 });
 
 function resolveChat(data: {
   telegramChatId?: string;
   discordChatId?: string;
+  whatsappChatId?: string;
   chatId?: string;
   platformId?: string;
 }): { chatId: string; platformId: string } | null {
   if (data.telegramChatId) return { chatId: data.telegramChatId, platformId: "telegram" };
   if (data.discordChatId) return { chatId: data.discordChatId, platformId: "discord" };
+  if (data.whatsappChatId) return { chatId: data.whatsappChatId, platformId: "whatsapp" };
   if (data.chatId) return { chatId: data.chatId, platformId: data.platformId ?? "telegram" };
   return null;
 }
 
-function resolveUsername(data: { telegramUsername?: string; discordUsername?: string }, platformId: string): string | null {
+function resolveUsername(data: { telegramUsername?: string; discordUsername?: string; whatsappUsername?: string }, platformId: string): string | null {
   if (platformId === "discord") {
     return (
       normalizeDiscordUsername(data.discordUsername) ??
       normalizeTelegramUsername(data.telegramUsername) ??
       (typeof data.discordUsername === "string" ? data.discordUsername.slice(0, 32) : null)
+    );
+  }
+  if (platformId === "whatsapp") {
+    return (
+      normalizeWhatsappUsername(data.whatsappUsername) ??
+      normalizeWhatsappUsername(data.telegramUsername) ??
+      (typeof data.whatsappUsername === "string" ? data.whatsappUsername.slice(0, 32) : null)
     );
   }
   return normalizeTelegramUsername(data.telegramUsername) ?? normalizeDiscordUsername(data.discordUsername);
@@ -117,12 +131,17 @@ function connectionPayload(row: {
 
 async function notifyBot(linked: boolean, telegramChatId: string, platformId = "telegram"): Promise<void> {
   const isDiscord = platformId === "discord";
+  const isWhatsapp = platformId === "whatsapp";
   const base = isDiscord
     ? (config as { discordServiceUrl?: string }).discordServiceUrl ?? "http://localhost:8365"
-    : config.telegramServiceUrl;
+    : isWhatsapp
+      ? (config as { whatsappServiceUrl?: string }).whatsappServiceUrl ?? "http://localhost:8366"
+      : config.telegramServiceUrl;
   const secret = isDiscord
     ? ((config as { discordWebhookSecret?: string }).discordWebhookSecret || config.telegramWebhookSecret)
-    : config.telegramWebhookSecret;
+    : isWhatsapp
+      ? ((config as { whatsappWebhookSecret?: string }).whatsappWebhookSecret || config.telegramWebhookSecret)
+      : config.telegramWebhookSecret;
   if (!secret) return;
   try {
     await fetch(`${base}/notify/${linked ? "linked" : "disconnect"}`, {
@@ -340,10 +359,11 @@ export function createPairingRouter(): Router {
     }
     const rawTelegram = typeof req.query.telegramChatId === "string" ? req.query.telegramChatId : "";
     const rawDiscord = typeof req.query.discordChatId === "string" ? req.query.discordChatId : "";
+    const rawWhatsapp = typeof req.query.whatsappChatId === "string" ? req.query.whatsappChatId : "";
     const rawChat = typeof req.query.chatId === "string" ? req.query.chatId : "";
     const rawPlatform = typeof req.query.platformId === "string" ? req.query.platformId : "";
-    const chatId = rawTelegram || rawDiscord || rawChat;
-    const platformId = rawTelegram ? "telegram" : rawDiscord ? "discord" : rawPlatform || "telegram";
+    const chatId = rawTelegram || rawDiscord || rawWhatsapp || rawChat;
+    const platformId = rawTelegram ? "telegram" : rawDiscord ? "discord" : rawWhatsapp ? "whatsapp" : rawPlatform || "telegram";
     if (!chatId) {
       res.status(400).json({ error: "chat id required" });
       return;
@@ -369,6 +389,7 @@ export function createPairingRouter(): Router {
         fromWeb: stats.fromWeb,
         fromTelegram: stats.fromTelegram,
         fromDiscord: stats.fromDiscord ?? 0,
+        fromWhatsapp: stats.fromWhatsapp ?? 0,
         lastMessageAt: stats.lastMessageAt ? new Date(stats.lastMessageAt).toISOString() : null,
       },
     });
@@ -405,6 +426,7 @@ export function createPairingRouter(): Router {
       .object({
         telegramChatId: z.string().min(1).optional(),
         discordChatId: z.string().min(1).optional(),
+        whatsappChatId: z.string().min(1).optional(),
         chatId: z.string().min(1).optional(),
         platformId: z.string().min(1).optional(),
       })
@@ -414,7 +436,7 @@ export function createPairingRouter(): Router {
       return;
     }
     const chatId =
-      parsed.data.telegramChatId ?? parsed.data.discordChatId ?? parsed.data.chatId;
+      parsed.data.telegramChatId ?? parsed.data.discordChatId ?? parsed.data.whatsappChatId ?? parsed.data.chatId;
     if (!chatId) {
       res.status(400).json({ error: "chat id required" });
       return;
@@ -423,9 +445,11 @@ export function createPairingRouter(): Router {
       ? "telegram"
       : parsed.data.discordChatId
         ? "discord"
-        : parsed.data.platformId === "discord"
-          ? "discord"
-          : "telegram";
+        : parsed.data.whatsappChatId
+          ? "whatsapp"
+          : parsed.data.platformId === "discord" || parsed.data.platformId === "whatsapp"
+            ? parsed.data.platformId
+            : "telegram";
     const removed = deleteConnectionByTelegramChat(chatId, platformId);
     if (!removed) {
       res.json({ ok: true });

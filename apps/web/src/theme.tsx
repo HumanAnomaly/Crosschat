@@ -10,6 +10,7 @@ function initialTheme(): ThemeName {
     const saved = localStorage.getItem(STORAGE_KEY);
     if (saved === "crosschat-dark" || saved === "crosschat") return saved;
   } catch {
+    // private-mode storage throws; fall through to default theme
   }
   return "crosschat";
 }
@@ -29,6 +30,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     try {
       localStorage.setItem(STORAGE_KEY, theme);
     } catch {
+      // private-mode storage throws; theme still applies for this session
     }
   }, [theme]);
 

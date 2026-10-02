@@ -30,10 +30,12 @@ export interface Platform {
 
 export const DEFAULT_TELEGRAM_ENTRY_URL = "https://t.me/trycrosschat_bot";
 export const DEFAULT_DISCORD_ENTRY_URL = "https://discord.com/oauth2/authorize";
+export const DEFAULT_WHATSAPP_ENTRY_URL = "https://wa.me/";
 
 export interface PlatformUrlOverrides {
   telegramEntryUrl?: string;
   discordEntryUrl?: string;
+  whatsappEntryUrl?: string;
 }
 
 /**
@@ -61,6 +63,11 @@ export function resolvePlatforms(overrides: PlatformUrlOverrides = {}): Platform
     }
     if (p.id === "discord" && overrides.discordEntryUrl !== undefined) {
       return { ...p, entryUrl: resolveEntryUrl(overrides.discordEntryUrl, p.entryUrl) };
+    }
+    if (p.id === "whatsapp" && overrides.whatsappEntryUrl !== undefined) {
+      const raw = (overrides.whatsappEntryUrl ?? "").trim();
+      if (!raw) return { ...p };
+      return { ...p, entryUrl: raw };
     }
     return { ...p };
   });
@@ -96,6 +103,21 @@ export const PLATFORMS: Platform[] = [
       "Keep DMs open so the bot can message you back.",
     ],
     note: "Text, photos, video, documents and audio up to 20MB via DM.",
+  },
+  {
+    id: "whatsapp",
+    label: "WhatsApp",
+    brandColor: "#25D366",
+    icon: "whatsapp",
+    entryUrl: DEFAULT_WHATSAPP_ENTRY_URL,
+    entryLabel: "Chat the WhatsApp bot",
+    steps: [
+      "Make sure the WhatsApp session is added on the server (session:add wa).",
+      "Send wired to the WhatsApp number, then send it the code from this page.",
+      "Or send newcode in WhatsApp, then enter that code here instead.",
+      "Keep the linked device active so messages keep flowing.",
+    ],
+    note: "Text, photos, video, documents and voice notes up to 20MB via DM.",
   },
 ];
 

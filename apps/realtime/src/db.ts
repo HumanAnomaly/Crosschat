@@ -79,6 +79,7 @@ for (const [table, column] of [
   ["pairing_codes", "platform_id"],
   ["messages_meta", "telegram_msg_id"],
   ["messages_meta", "discord_msg_id"],
+  ["messages_meta", "whatsapp_msg_id"],
 ] as const) {
   const exists = db.prepare(`SELECT name FROM pragma_table_info('${table}') WHERE name = ?`).get(column);
   if (!exists) db.exec(`ALTER TABLE ${table} ADD COLUMN ${column} TEXT`);
@@ -200,6 +201,7 @@ export interface MessageRow {
   created_at: number;
   telegram_msg_id: string | null;
   discord_msg_id: string | null;
+  whatsapp_msg_id: string | null;
 }
 
 export function findUserBySub(googleSub: string): UserRow | undefined {
@@ -324,6 +326,10 @@ export function findConnectionByDiscordChat(discordChatId: string): ConnectionRo
   return findConnectionByPlatformChat(discordChatId, "discord");
 }
 
+export function findConnectionByWhatsappChat(whatsappChatId: string): ConnectionRow | undefined {
+  return findConnectionByPlatformChat(whatsappChatId, "whatsapp");
+}
+
 export function deleteConnectionByTelegramChat(telegramChatId: string, platformId = "telegram"): ConnectionRow | undefined {
   const existing = findConnectionByPlatformChat(telegramChatId, platformId);
   if (existing) db.prepare("DELETE FROM connections WHERE id = ?").run(existing.id);
@@ -413,9 +419,10 @@ export function insertMessage(row: {
   createdAt: number;
   telegramMsgId?: string | null;
   discordMsgId?: string | null;
+  whatsappMsgId?: string | null;
 }): MessageRow {
   db.prepare(
-    "INSERT INTO messages_meta (id, connection_id, sender, kind, text, media_path, mime, size, created_at, telegram_msg_id, discord_msg_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+    "INSERT INTO messages_meta (id, connection_id, sender, kind, text, media_path, mime, size, created_at, telegram_msg_id, discord_msg_id, whatsapp_msg_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
   ).run(
     row.id,
     row.connectionId,
@@ -428,34 +435,46 @@ export function insertMessage(row: {
     row.createdAt,
     row.telegramMsgId ?? null,
     row.discordMsgId ?? null,
+    row.whatsappMsgId ?? null,
   );
   return db.prepare("SELECT * FROM messages_meta WHERE id = ?").get(row.id) as MessageRow;
 }
 
-export function updateMessagePlatformIds(id: string, opts: { telegramMsgId?: string | null; discordMsgId?: string | null }): void {
+export function updateMessagePlatformIds(id: string, opts: { telegramMsgId?: string | null; discordMsgId?: string | null; whatsappMsgId?: string | null }): void {
   if (opts.telegramMsgId != null) {
     db.prepare("UPDATE messages_meta SET telegram_msg_id = ? WHERE id = ?").run(opts.telegramMsgId, id);
   }
   if (opts.discordMsgId != null) {
     db.prepare("UPDATE messages_meta SET discord_msg_id = ? WHERE id = ?").run(opts.discordMsgId, id);
   }
+  if (opts.whatsappMsgId != null) {
+    db.prepare("UPDATE messages_meta SET whatsapp_msg_id = ? WHERE id = ?").run(opts.whatsappMsgId, id);
+  }
 }
 
-export function findMessageByPlatformId(platformMsgId: string, platform: "telegram" | "discord"): MessageRow | undefined {
-  const col = platform === "telegram" ? "telegram_msg_id" : "discord_msg_id";
+export type PlatformMessageKind = "telegram" | "discord" | "whatsapp";
+
+function platformIdColumn(platform: PlatformMessageKind): string {
+  if (platform === "discord") return "discord_msg_id";
+  if (platform === "whatsapp") return "whatsapp_msg_id";
+  return "telegram_msg_id";
+}
+
+export function findMessageByPlatformId(platformMsgId: string, platform: PlatformMessageKind): MessageRow | undefined {
+  const col = platformIdColumn(platform);
   return db.prepare(`SELECT * FROM messages_meta WHERE ${col} = ?`).get(platformMsgId) as
     | MessageRow
     | undefined;
 }
 
-export function findMessagesByPlatformPrefix(prefix: string, platform: "telegram" | "discord"): MessageRow[] {
-  const col = platform === "telegram" ? "telegram_msg_id" : "discord_msg_id";
+export function findMessagesByPlatformPrefix(prefix: string, platform: PlatformMessageKind): MessageRow[] {
+  const col = platformIdColumn(platform);
   return db.prepare(`SELECT * FROM messages_meta WHERE ${col} = ? OR ${col} LIKE ?`).all(prefix, `${prefix}:%`) as MessageRow[];
 }
 
 /** All rows carrying a platform id (ids repeat per chat on Telegram). */
-export function findMessagesByPlatformId(platformMsgId: string, platform: "telegram" | "discord"): MessageRow[] {
-  const col = platform === "telegram" ? "telegram_msg_id" : "discord_msg_id";
+export function findMessagesByPlatformId(platformMsgId: string, platform: PlatformMessageKind): MessageRow[] {
+  const col = platformIdColumn(platform);
   return db.prepare(`SELECT * FROM messages_meta WHERE ${col} = ? OR ${col} LIKE ?`).all(platformMsgId, `${platformMsgId}:%`) as MessageRow[];
 }
 
@@ -508,6 +527,7 @@ export interface ConnectionStats {
   fromWeb: number;
   fromTelegram: number;
   fromDiscord?: number;
+  fromWhatsapp?: number;
   lastMessageAt: number | null;
 }
 
@@ -520,16 +540,18 @@ export function connectionStats(connectionId: string): ConnectionStats {
   let fromWeb = 0;
   let fromTelegram = 0;
   let fromDiscord = 0;
+  let fromWhatsapp = 0;
   let lastMessageAt: number | null = null;
   for (const row of rows) {
     if (row.sender === "telegram") fromTelegram = row.n;
     else if (row.sender === "discord") fromDiscord = row.n;
+    else if (row.sender === "whatsapp") fromWhatsapp = row.n;
     else fromWeb += row.n;
     if (row.last_at != null && (lastMessageAt == null || row.last_at > lastMessageAt)) {
       lastMessageAt = row.last_at;
     }
   }
-  return { total: fromWeb + fromTelegram + fromDiscord, fromWeb, fromTelegram, lastMessageAt, fromDiscord };
+  return { total: fromWeb + fromTelegram + fromDiscord + fromWhatsapp, fromWeb, fromTelegram, lastMessageAt, fromDiscord, fromWhatsapp };
 }
 
 const invokedAsMain =

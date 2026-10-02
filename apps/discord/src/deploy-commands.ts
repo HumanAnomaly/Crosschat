@@ -1,6 +1,9 @@
 import { REST, Routes } from "discord.js";
+import { createLogger } from "@crosschat/core";
 import { discordConfig } from "./config.js";
 import { slashDefinitions } from "./commands.js";
+
+const log = createLogger("discord");
 
 export async function deploySlashCommands(clientIdOverride?: string): Promise<void> {
   const token = discordConfig.token;
@@ -12,11 +15,11 @@ export async function deploySlashCommands(clientIdOverride?: string): Promise<vo
     await rest.put(Routes.applicationGuildCommands(clientId, discordConfig.guildId), {
       body: slashDefinitions,
     });
-    process.stdout.write(`slash commands deployed to guild ${discordConfig.guildId}\n`);
+    log.success(`slash commands deployed to guild ${discordConfig.guildId}`);
     return;
   }
   await rest.put(Routes.applicationCommands(clientId), { body: slashDefinitions });
-  process.stdout.write(`slash commands deployed globally for ${clientId}\n`);
+  log.success(`slash commands deployed globally for ${clientId}`);
 }
 
 const invokedDirectly =
@@ -24,7 +27,7 @@ const invokedDirectly =
 
 if (invokedDirectly) {
   deploySlashCommands().catch((err) => {
-    console.error("slash deploy failed:", err);
+    log.error("slash deploy failed", err);
     process.exit(1);
   });
 }

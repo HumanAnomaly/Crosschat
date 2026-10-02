@@ -15,6 +15,7 @@ import { config } from "./env.js";
 import { emitToConnection } from "./socket.js";
 import { notifyTelegram } from "./telegram-bridge.js";
 import { notifyDiscord } from "./discord-bridge.js";
+import { notifyWhatsapp } from "./whatsapp-bridge.js";
 import { resolveStoredMediaPath } from "./security.js";
 
 const MAX_BYTES = config.mediaMaxBytes;
@@ -52,7 +53,8 @@ function decodeHeader(v: string | string[] | undefined): string {
   const s = Array.isArray(v) ? (v[0] ?? "") : (v ?? "");
   try {
     return decodeURIComponent(s);
-  } catch {
+  } catch (err) {
+    console.error("decode header failed", err);
     return s;
   }
 }
@@ -131,12 +133,27 @@ export function createMediaRouter(): Router {
             if (r?.discordMessageId) {
               try {
                 updateMessagePlatformIds(saved.id, { discordMsgId: r.discordMessageId });
-              } catch {
+              } catch (err) {
+                console.error("discord id persist failed", err);
               }
             }
           })
           .catch((err) => {
             console.error("forward to discord failed", err);
+          });
+      } else if ((connection.platform_id ?? "telegram") === "whatsapp") {
+        notifyWhatsapp(connection.id, message)
+          .then((r) => {
+            if (r?.whatsappMessageId) {
+              try {
+                updateMessagePlatformIds(saved.id, { whatsappMsgId: r.whatsappMessageId });
+              } catch (err) {
+                console.error("whatsapp id persist failed", err);
+              }
+            }
+          })
+          .catch((err) => {
+            console.error("forward to whatsapp failed", err);
           });
       } else {
         notifyTelegram(connection.id, message)
@@ -144,7 +161,8 @@ export function createMediaRouter(): Router {
             if (r?.telegramMessageId) {
               try {
                 updateMessagePlatformIds(saved.id, { telegramMsgId: r.telegramMessageId });
-              } catch {
+              } catch (err) {
+                console.error("telegram id persist failed", err);
               }
             }
           })

@@ -189,7 +189,9 @@ export default function PairPanel({
               <dd className="font-medium tabular-nums">
                 {platform?.id === "discord"
                   ? (stats?.stats.fromDiscord ?? "—")
-                  : (stats?.stats.fromTelegram ?? "—")}
+                  : platform?.id === "whatsapp"
+                    ? (stats?.stats.fromWhatsapp ?? "—")
+                    : (stats?.stats.fromTelegram ?? "—")}
               </dd>
             </div>
             <div className="flex justify-between gap-2">

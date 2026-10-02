@@ -1,24 +1,24 @@
 import type { IncomingMessage, ServerResponse } from "node:http";
-import type { Client, Message } from "discord.js";
-import { discordConfig } from "./config.js";
+import { createLogger } from "@crosschat/core";
+import { whatsappConfig } from "./config.js";
 import { translate } from "./i18n.js";
 import { fetchLinkStatus, markUnwired, markWired } from "./wired.js";
+import type { AnyClient } from "./client.js";
+
+const log = createLogger("whatsapp");
 
 function t(key: string, vars?: Record<string, string | number>): string {
-  return translate(discordConfig.locale, key, vars);
+  return translate(whatsappConfig.locale, key, vars);
 }
 
-export async function handleDisconnect(userId: string, reply: (text: string) => Promise<void>): Promise<void> {
-  if (!userId) return;
+export async function handleDisconnect(client: AnyClient | null, chatId: string, reply: (text: string) => Promise<void>): Promise<void> {
+  if (!chatId) return;
   let confirmed = false;
   try {
-    const res = await fetch(`${discordConfig.realtimeUrl}/api/pair/disconnect`, {
+    const res = await fetch(`${whatsappConfig.realtimeUrl}/api/pair/disconnect`, {
       method: "POST",
-      headers: {
-        "content-type": "application/json",
-        "x-bot-secret": discordConfig.webhookSecret,
-      },
-      body: JSON.stringify({ discordChatId: userId, platformId: "discord" }),
+      headers: { "content-type": "application/json", "x-bot-secret": whatsappConfig.webhookSecret },
+      body: JSON.stringify({ whatsappChatId: chatId, platformId: "whatsapp" }),
     });
     confirmed = res.ok || res.status === 404;
   } catch {
@@ -28,32 +28,32 @@ export async function handleDisconnect(userId: string, reply: (text: string) => 
     await reply(t("disconnect.incomplete"));
     return;
   }
-  markUnwired(userId);
+  markUnwired(chatId);
   await reply(t("disconnect.done"));
 }
 
-export async function notifyWebDisconnect(client: Client, chatId: string): Promise<void> {
+export async function notifyWebDisconnect(client: AnyClient | null, chatId: string): Promise<void> {
   markUnwired(chatId);
+  if (!client) return;
   try {
-    const user = await client.users.fetch(chatId);
-    await user.send(t("disconnect.fromWeb"));
+    await client.message.send(chatId, t("disconnect.fromWeb"));
   } catch (err) {
-    console.error("discord notify disconnect failed", err);
+    log.error("notify disconnect failed", err);
   }
 }
 
-export async function notifyWebClaim(client: Client, chatId: string): Promise<void> {
+export async function notifyWebClaim(client: AnyClient | null, chatId: string): Promise<void> {
   const status = await fetchLinkStatus(chatId);
   if (!status?.wired) return;
   markWired(chatId);
+  if (!client) return;
   const name = status.user?.name?.trim();
   const email = status.user?.email?.trim();
   const account = name && email ? `${name} (${email})` : (name || email || t("wired.unknownAccount"));
   try {
-    const user = await client.users.fetch(chatId);
-    await user.send(t("wired.linked", { account }));
+    await client.message.send(chatId, t("wired.linked", { account }));
   } catch (err) {
-    console.error("discord notify claim failed", err);
+    log.error("notify claim failed", err);
   }
 }
 
@@ -76,12 +76,12 @@ function readBodyLimited(req: IncomingMessage, limit = 16_384): Promise<string> 
 }
 
 async function handleNotify(
-  client: Client,
+  client: AnyClient | null,
   req: IncomingMessage,
   res: ServerResponse,
   kind: "disconnect" | "linked",
 ): Promise<void> {
-  const secret = discordConfig.webhookSecret;
+  const secret = whatsappConfig.webhookSecret;
   if (!secret || req.headers["x-bot-secret"] !== secret) {
     res.writeHead(401);
     res.end("unauthorized");
@@ -100,19 +100,12 @@ async function handleNotify(
   }
 }
 
-export function createNotifyHandler(client: Client) {
+export function createNotifyHandler(client: AnyClient | null) {
   return (req: IncomingMessage, res: ServerResponse): Promise<void> =>
     handleNotify(client, req, res, "disconnect");
 }
 
-export function createLinkedHandler(client: Client) {
+export function createLinkedHandler(client: AnyClient | null) {
   return (req: IncomingMessage, res: ServerResponse): Promise<void> =>
     handleNotify(client, req, res, "linked");
-}
-
-/** Legacy `!name` prefix check. Slash commands are primary now; this only
- * detects old-style input so the bot can nudge users toward `/help`. */
-export function isCommand(message: Message, name: string): boolean {
-  const text = message.content.trim().toLowerCase();
-  return text === `!${name}` || text.startsWith(`!${name} `);
 }

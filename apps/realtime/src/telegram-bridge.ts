@@ -55,7 +55,8 @@ function extractTelegramMessageId(body: unknown): string | null {
     if (r && typeof r === "object" && r.result && typeof r.result.message_id !== "undefined") {
       return String(r.result.message_id);
     }
-  } catch {
+  } catch (err) {
+    console.error("telegram message id parse failed", err);
   }
   return null;
 }
