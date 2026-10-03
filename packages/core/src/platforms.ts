@@ -2,7 +2,7 @@
  * Platform registry.
  *
  * Every chat surface is described here rather than being hardcoded in the UI, so
- * adding `apps/<platform>` later means adding one entry — not touching the
+ * adding `apps/<platform>` later means adding one entry, not touching the
  * components. No platform is privileged: the list is rendered generically and
  * the first entry is not treated as a default anywhere.
  */

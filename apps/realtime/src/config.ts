@@ -13,7 +13,7 @@ export function createConfigRouter(): Router {
     const resolved = resolvePlatforms({
       telegramEntryUrl: config.telegramEntryUrl,
       discordEntryUrl: config.discordEntryUrl,
-      whatsappEntryUrl: (config as { whatsappEntryUrl?: string }).whatsappEntryUrl,
+      whatsappEntryUrl: config.whatsappEntryUrl,
     });
     res.json({
       telegramEntryUrl: resolved.find((p) => p.id === "telegram")?.entryUrl ?? config.telegramEntryUrl,

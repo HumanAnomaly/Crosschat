@@ -26,9 +26,6 @@ importers:
       dotenv:
         specifier: ^16.4.5
         version: 16.6.1
-      zod:
-        specifier: ^3.23.8
-        version: 3.25.76
     devDependencies:
       '@types/node':
         specifier: ^22.7.4
@@ -106,9 +103,6 @@ importers:
       grammy:
         specifier: ^1.46.0
         version: 1.46.0
-      zod:
-        specifier: ^3.23.8
-        version: 3.25.76
     devDependencies:
       '@types/node':
         specifier: ^22.7.4
@@ -201,9 +195,6 @@ importers:
       zapo-js:
         specifier: ^1.0.0
         version: 1.9.0(ws@8.21.3)
-      zod:
-        specifier: ^3.23.8
-        version: 3.25.76
     devDependencies:
       '@types/node':
         specifier: ^22.7.4

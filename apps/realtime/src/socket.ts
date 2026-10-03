@@ -34,7 +34,12 @@ function readSessionCookie(header: string | undefined): string | undefined {
     const idx = part.indexOf("=");
     if (idx < 0) continue;
     if (part.slice(0, idx).trim() === SESSION_COOKIE) {
-      return decodeURIComponent(part.slice(idx + 1).trim());
+      // Cookie values are client-controlled; `%zz` would make decodeURIComponent throw.
+      try {
+        return decodeURIComponent(part.slice(idx + 1).trim());
+      } catch {
+        return undefined;
+      }
     }
   }
   return undefined;
@@ -70,6 +75,14 @@ function toChatMessage(row: {
 export { toChatMessage };
 
 const sendStamps = new Map<string, number[]>();
+setInterval(() => {
+  const now = Date.now();
+  for (const [k, v] of sendStamps) {
+    const kept = v.filter((t) => now - t < 10_000);
+    if (kept.length === 0) sendStamps.delete(k);
+    else sendStamps.set(k, kept);
+  }
+}, 60 * 1000).unref?.();
 function checkSendRate(userId: string): boolean {
   const now = Date.now();
   const arr = (sendStamps.get(userId) ?? []).filter((t) => now - t < 10_000);
@@ -232,11 +245,17 @@ export function attachSocket(httpServer: HttpServer): Server {
         if (ack) ack({ ok: false, error: "you can only delete your own messages" });
         return;
       }
-      void import("./messages.js").then(({ eraseMessageCompletely }) =>
-        eraseMessageCompletely(meta).then(() => {
-          if (ack) ack({ ok: true, id });
-        }),
-      );
+      void import("./messages.js")
+        .then(({ eraseMessageCompletely }) => eraseMessageCompletely(meta))
+        .then(
+          () => {
+            if (ack) ack({ ok: true, id });
+          },
+          (err) => {
+            console.error("socket delete failed", err);
+            if (ack) ack({ ok: false, error: "delete failed" });
+          },
+        );
     });
   });
 

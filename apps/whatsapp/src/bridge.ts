@@ -157,16 +157,3 @@ export async function handleInbound(client: AnyClient, event: any): Promise<void
     await send(t("media.backendDown"));
   }
 }
-
-export async function handleDeleted(chatId: string | null, whatsappMessageId: string): Promise<void> {
-  if (!whatsappMessageId) return;
-  try {
-    await fetch(`${whatsappConfig.realtimeUrl}/api/whatsapp/delete`, {
-      method: "POST",
-      headers: { "content-type": "application/json", "x-bot-secret": whatsappConfig.webhookSecret },
-      body: JSON.stringify(chatId ? { chatId, platformMsgId: whatsappMessageId } : { platformMsgId: whatsappMessageId }),
-    });
-  } catch (err) {
-    log.error("whatsapp delete forward failed", err);
-  }
-}

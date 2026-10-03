@@ -1,5 +1,5 @@
 import type { IncomingMessage, ServerResponse } from "node:http";
-import type { Client, Message } from "discord.js";
+import type { Client } from "discord.js";
 import { discordConfig } from "./config.js";
 import { translate } from "./i18n.js";
 import { fetchLinkStatus, markUnwired, markWired } from "./wired.js";
@@ -108,11 +108,4 @@ export function createNotifyHandler(client: Client) {
 export function createLinkedHandler(client: Client) {
   return (req: IncomingMessage, res: ServerResponse): Promise<void> =>
     handleNotify(client, req, res, "linked");
-}
-
-/** Legacy `!name` prefix check. Slash commands are primary now; this only
- * detects old-style input so the bot can nudge users toward `/help`. */
-export function isCommand(message: Message, name: string): boolean {
-  const text = message.content.trim().toLowerCase();
-  return text === `!${name}` || text.startsWith(`!${name} `);
 }

@@ -68,13 +68,6 @@ export function resolveSessionUser(signedValue: string | undefined): SessionUser
   return { id: user.id, email: user.email, name: user.name, picture: user.picture };
 }
 
-
-
-
-
-
-
-
 export function attachSession(req: Request, _res: Response, next: NextFunction): void {
   const user = resolveSessionUser(req.cookies?.[SESSION_COOKIE]);
   if (user) req.user = user;
@@ -99,6 +92,10 @@ function sessionCookieOptions() {
   };
 }
 
+function oauthCookieOptions() {
+  return { ...sessionCookieOptions(), maxAge: 10 * 60 * 1000 };
+}
+
 function googleClient(): arctic.Google {
   return new arctic.Google(
     config.googleClientId,
@@ -114,9 +111,6 @@ interface GoogleUserInfo {
   name?: string;
   picture?: string;
 }
-
-
-// ---------------------- // 
 
 export function createAuthRouter(): Router {
   const router = Router();
@@ -135,9 +129,8 @@ export function createAuthRouter(): Router {
       "email",
     ]);
     url.searchParams.set("access_type", "offline");
-    const base = { httpOnly: true, sameSite: "lax" as const, secure: config.isProd, path: "/", maxAge: 10 * 60 * 1000 };
-    res.cookie(OAUTH_STATE_COOKIE, state, base);
-    res.cookie(OAUTH_VERIFIER_COOKIE, codeVerifier, base);
+    res.cookie(OAUTH_STATE_COOKIE, state, oauthCookieOptions());
+    res.cookie(OAUTH_VERIFIER_COOKIE, codeVerifier, oauthCookieOptions());
     res.redirect(url.toString());
   });
 

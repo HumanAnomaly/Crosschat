@@ -53,80 +53,55 @@ export async function notifyWebClaim(bot: Bot, chatId: string): Promise<void> {
   });
 }
 
-export function createNotifyHandler(bot: Bot) {
-  return async (req: IncomingMessage, res: ServerResponse): Promise<void> => {
-    const secret = telegramConfig.webhookSecret;
-    if (!secret || req.headers["x-bot-secret"] !== secret) {
-      res.writeHead(401);
-      res.end("unauthorized");
-      return;
-    }
-    let body = "";
+function readBodyLimited(req: IncomingMessage, limit = 16_384): Promise<string> {
+  return new Promise((resolve, reject) => {
     let size = 0;
+    let body = "";
     req.on("data", (chunk) => {
       size += (chunk as Buffer).length ?? String(chunk).length;
-      if (size > 16_384) {
-        res.writeHead(413);
-        res.end("payload too large");
+      if (size > limit) {
+        reject(new Error("payload too large"));
         req.destroy();
         return;
       }
       body += String(chunk);
     });
-    await new Promise<void>((resolve, reject) => {
-      req.on("end", () => resolve());
-      req.on("error", reject);
-    });
-    try {
-      const data = JSON.parse(body) as { chatId?: unknown };
-      if (typeof data.chatId !== "string" || data.chatId.length === 0) {
-        throw new Error("bad chatId");
-      }
-      await notifyWebDisconnect(bot, data.chatId);
-      res.writeHead(200, { "content-type": "application/json" });
-      res.end(JSON.stringify({ ok: true }));
-    } catch {
-      res.writeHead(400);
-      res.end("bad request");
-    }
-  };
+    req.on("end", () => resolve(body));
+    req.on("error", reject);
+  });
+}
+
+async function handleNotify(
+  bot: Bot,
+  req: IncomingMessage,
+  res: ServerResponse,
+  kind: "disconnect" | "linked",
+): Promise<void> {
+  const secret = telegramConfig.webhookSecret;
+  if (!secret || req.headers["x-bot-secret"] !== secret) {
+    res.writeHead(401);
+    res.end("unauthorized");
+    return;
+  }
+  try {
+    const data = JSON.parse(await readBodyLimited(req)) as { chatId?: unknown };
+    if (typeof data.chatId !== "string" || data.chatId.length === 0) throw new Error("bad chatId");
+    if (kind === "disconnect") await notifyWebDisconnect(bot, data.chatId);
+    else await notifyWebClaim(bot, data.chatId);
+    res.writeHead(200, { "content-type": "application/json" });
+    res.end(JSON.stringify({ ok: true }));
+  } catch {
+    res.writeHead(400);
+    res.end("bad request");
+  }
+}
+
+export function createNotifyHandler(bot: Bot) {
+  return (req: IncomingMessage, res: ServerResponse): Promise<void> =>
+    handleNotify(bot, req, res, "disconnect");
 }
 
 export function createLinkedHandler(bot: Bot) {
-  return async (req: IncomingMessage, res: ServerResponse): Promise<void> => {
-    const secret = telegramConfig.webhookSecret;
-    if (!secret || req.headers["x-bot-secret"] !== secret) {
-      res.writeHead(401);
-      res.end("unauthorized");
-      return;
-    }
-    let body = "";
-    let size = 0;
-    req.on("data", (chunk) => {
-      size += (chunk as Buffer).length ?? String(chunk).length;
-      if (size > 16_384) {
-        res.writeHead(413);
-        res.end("payload too large");
-        req.destroy();
-        return;
-      }
-      body += String(chunk);
-    });
-    await new Promise<void>((resolve, reject) => {
-      req.on("end", () => resolve());
-      req.on("error", reject);
-    });
-    try {
-      const data = JSON.parse(body) as { chatId?: unknown };
-      if (typeof data.chatId !== "string" || data.chatId.length === 0) {
-        throw new Error("bad chatId");
-      }
-      await notifyWebClaim(bot, data.chatId);
-      res.writeHead(200, { "content-type": "application/json" });
-      res.end(JSON.stringify({ ok: true }));
-    } catch {
-      res.writeHead(400);
-      res.end("bad request");
-    }
-  };
+  return (req: IncomingMessage, res: ServerResponse): Promise<void> =>
+    handleNotify(bot, req, res, "linked");
 }

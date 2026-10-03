@@ -140,8 +140,10 @@ export async function uploadMedia(
     credentials: "include",
     headers: {
       "Content-Type": file.type || "application/octet-stream",
-      "X-Filename": file.name,
-      ...(caption ? { "X-Caption": caption.slice(0, 4000) } : {}),
+      // Header values cannot carry non-ASCII (emoji in captions/names would
+      // throw); the backend decodeURIComponent()s both of these.
+      "X-Filename": encodeURIComponent(file.name),
+      ...(caption ? { "X-Caption": encodeURIComponent(caption.slice(0, 4000)) } : {}),
     },
     body: file,
   });

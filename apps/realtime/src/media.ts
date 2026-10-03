@@ -9,13 +9,10 @@ import {
   findConnectionById,
   findMessageById,
   insertMessage,
-  updateMessagePlatformIds,
 } from "./db.js";
 import { config } from "./env.js";
 import { emitToConnection } from "./socket.js";
-import { notifyTelegram } from "./telegram-bridge.js";
-import { notifyDiscord } from "./discord-bridge.js";
-import { notifyWhatsapp } from "./whatsapp-bridge.js";
+import { forwardWebMessage } from "./forward.js";
 import { resolveStoredMediaPath } from "./security.js";
 
 const MAX_BYTES = config.mediaMaxBytes;
@@ -127,49 +124,7 @@ export function createMediaRouter(): Router {
         createdAt: new Date(saved.created_at).toISOString(),
       };
       emitToConnection(connection.id, "message:new", message);
-      if ((connection.platform_id ?? "telegram") === "discord") {
-        notifyDiscord(connection.id, message)
-          .then((r) => {
-            if (r?.discordMessageId) {
-              try {
-                updateMessagePlatformIds(saved.id, { discordMsgId: r.discordMessageId });
-              } catch (err) {
-                console.error("discord id persist failed", err);
-              }
-            }
-          })
-          .catch((err) => {
-            console.error("forward to discord failed", err);
-          });
-      } else if ((connection.platform_id ?? "telegram") === "whatsapp") {
-        notifyWhatsapp(connection.id, message)
-          .then((r) => {
-            if (r?.whatsappMessageId) {
-              try {
-                updateMessagePlatformIds(saved.id, { whatsappMsgId: r.whatsappMessageId });
-              } catch (err) {
-                console.error("whatsapp id persist failed", err);
-              }
-            }
-          })
-          .catch((err) => {
-            console.error("forward to whatsapp failed", err);
-          });
-      } else {
-        notifyTelegram(connection.id, message)
-          .then((r) => {
-            if (r?.telegramMessageId) {
-              try {
-                updateMessagePlatformIds(saved.id, { telegramMsgId: r.telegramMessageId });
-              } catch (err) {
-                console.error("telegram id persist failed", err);
-              }
-            }
-          })
-          .catch((err) => {
-            console.error("forward to telegram failed", err);
-          });
-      }
+      forwardWebMessage(connection.id, message);
       res.status(201).json({ message });
     },
   );

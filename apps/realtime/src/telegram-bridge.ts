@@ -1,9 +1,8 @@
 import fs from "node:fs";
-import path from "node:path";
 import type { ChatMessage } from "@crosschat/core";
-import { findConnectionById, findMessageById } from "./db.js";
+import { findConnectionById } from "./db.js";
 import { config } from "./env.js";
-import { resolveStoredMediaPath } from "./security.js";
+import { originalFilename, storedFileFor } from "./bridge-files.js";
 
 /** Bot API ceiling for uploads we forward, not a tunable. */
 const MAX_FORWARD_BYTES = 50 * 1024 * 1024;
@@ -12,51 +11,10 @@ function botApiUrl(method: string): string {
   return `https://api.telegram.org/bot${config.telegramBotToken}/${method}`;
 }
 
-/**
- * Resolve the on-disk file for a chat message. `connectionId` comes from the
- * trusted caller (the DB row we just inserted), never from the payload. The
- * payload's own connectionId is client-influenced and must not be trusted for
- * authorization.
- */
-function storedFileFor(connectionId: string, message: ChatMessage): string | null {
-  if (!message.mediaPath) return null;
-  if (message.mediaPath.startsWith("/media/")) {
-    const id = message.mediaPath.slice("/media/".length).split("/")[0];
-    if (!id) return null;
-    const meta = findMessageById(id);
-    if (!meta?.media_path || meta.connection_id !== connectionId) return null;
-    return resolveStoredMediaPath(meta.media_path);
-  }
-  const abs = resolveStoredMediaPath(message.mediaPath);
-  if (!abs) return null;
-
-  const rel = abs.slice(path.resolve(config.mediaDir).length + 1).replace(/\\/g, "/");
-  return rel.startsWith(`${connectionId}/`) ? abs : null;
-}
-
-function originalFilename(connectionId: string, message: ChatMessage): string {
-  if (message.mediaPath?.startsWith("/media/")) {
-    const id = message.mediaPath.slice("/media/".length).split("/")[0];
-    const meta = id ? findMessageById(id) : undefined;
-    if (meta?.media_path) {
-      const base = meta.media_path.replace(/\\/g, "/").split("/").pop() ?? "file";
-
-      const dash = base.indexOf("-");
-      const name = dash >= 0 ? base.slice(dash + 1) : base;
-      if (name) return name;
-    }
-  }
-  return "file";
-}
-
 function extractTelegramMessageId(body: unknown): string | null {
-  try {
-    const r = body as { ok?: boolean; result?: { message_id?: unknown } };
-    if (r && typeof r === "object" && r.result && typeof r.result.message_id !== "undefined") {
-      return String(r.result.message_id);
-    }
-  } catch (err) {
-    console.error("telegram message id parse failed", err);
+  const r = body as { ok?: boolean; result?: { message_id?: unknown } } | null;
+  if (r && typeof r === "object" && r.result && typeof r.result.message_id !== "undefined") {
+    return String(r.result.message_id);
   }
   return null;
 }
@@ -99,8 +57,6 @@ export async function notifyTelegram(
     const form = new FormData();
     form.append("chat_id", chatId);
     form.append("caption", (message.text ?? "").slice(0, 1024));
-    const mimeBase = (message.mime ?? "").split(";")[0].trim().toLowerCase();
-    void mimeBase;
     let method =
       message.kind === "photo" ? "sendPhoto" : message.kind === "video" ? "sendVideo" : "sendDocument";
     let field =
@@ -109,13 +65,13 @@ export async function notifyTelegram(
       method = "sendSticker";
       field = "sticker";
     }
-    form.append(field, blob, originalFilename(connectionId, message) || "file");
+    form.append(field, blob, originalFilename(message));
     let res = await fetch(botApiUrl(method), { method: "POST", body: form });
     if (!res.ok && method === "sendSticker") {
       const retry = new FormData();
       retry.append("chat_id", chatId);
       retry.append("caption", (message.text ?? "").slice(0, 1024));
-      retry.append("document", blob, originalFilename(connectionId, message) || "file");
+      retry.append("document", blob, originalFilename(message));
       res = await fetch(botApiUrl("sendDocument"), { method: "POST", body: retry });
       if (!res.ok) {
         console.error(`notifyTelegram: sendSticker/sendDocument failed with ${res.status}`);

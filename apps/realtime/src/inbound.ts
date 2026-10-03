@@ -5,14 +5,13 @@ import path from "node:path";
 import { randomUUID } from "node:crypto";
 import { z } from "zod";
 import { safeFilename } from "@crosschat/core";
-import {
-  findConnectionByPlatformChat,
-  insertMessage,
-  updateConnectionUsername,
-} from "./db.js";
+import { findConnectionByPlatformChat, insertMessage, updateConnectionUsername } from "./db.js";
 import { config } from "./env.js";
 import { isBotRequest } from "./security.js";
 import { emitToConnection, toChatMessage } from "./socket.js";
+
+type Platform = "telegram" | "discord" | "whatsapp";
+type Sender = Platform;
 
 const inboundSchema = z.object({
   chatId: z.string().min(1).max(64),
@@ -22,19 +21,52 @@ const inboundSchema = z.object({
   filename: z.string().max(160).optional(),
   mime: z.string().max(120).optional(),
   size: z.number().max(50 * 1024 * 1024).optional(),
-  discordUsername: z.string().max(37).optional(),
   telegramUsername: z.string().max(33).optional(),
-  platformMsgId: z.string().max(64).optional(),
+  discordUsername: z.string().max(37).optional(),
+  whatsappUsername: z.string().max(32).optional(),
+  platformMsgId: z.string().max(128).optional(),
   discordMessageId: z.string().max(64).optional(),
+  whatsappMessageId: z.string().max(128).optional(),
 });
 
-export function createDiscordRouter(): Router {
+type InboundBody = z.infer<typeof inboundSchema>;
+
+interface InboundPlatform {
+  sender: Sender;
+  /** Ordered fallback chain for the display handle. */
+  username: (data: InboundBody) => string | undefined;
+  /** Platform message id to persist, in fallback order. */
+  msgId: (data: InboundBody) => string | undefined;
+  /** messages_meta column receiving `msgId`. */
+  msgIdColumn: "telegramMsgId" | "discordMsgId" | "whatsappMsgId";
+}
+
+const INBOUND_PLATFORMS: Record<Platform, InboundPlatform> = {
+  telegram: {
+    sender: "telegram",
+    username: (d) => d.telegramUsername,
+    msgId: (d) => d.platformMsgId,
+    msgIdColumn: "telegramMsgId",
+  },
+  discord: {
+    sender: "discord",
+    username: (d) => d.discordUsername ?? d.telegramUsername,
+    msgId: (d) => d.platformMsgId ?? d.discordMessageId,
+    msgIdColumn: "discordMsgId",
+  },
+  whatsapp: {
+    sender: "whatsapp",
+    username: (d) => d.whatsappUsername ?? d.telegramUsername,
+    msgId: (d) => d.platformMsgId ?? d.whatsappMessageId,
+    msgIdColumn: "whatsappMsgId",
+  },
+};
+
+export function createInboundRouters(): Router {
   const router = Router();
 
-  router.post(
-    "/api/discord/inbound",
-    express.json({ limit: "30mb" }),
-    (req: Request, res: Response) => {
+  for (const [platform, p] of Object.entries(INBOUND_PLATFORMS) as [Platform, InboundPlatform][]) {
+    router.post(`/api/${platform}/inbound`, express.json({ limit: "30mb" }), (req: Request, res: Response) => {
       if (!isBotRequest(req)) {
         res.status(401).json({ error: "unauthorized" });
         return;
@@ -44,30 +76,31 @@ export function createDiscordRouter(): Router {
         res.status(400).json({ error: "invalid payload" });
         return;
       }
-      const connection = findConnectionByPlatformChat(parsed.data.chatId, "discord");
+      const data = parsed.data;
+      const connection = findConnectionByPlatformChat(data.chatId, platform);
       if (!connection) {
         res.status(404).json({ error: "connection not found" });
         return;
       }
-      const username = parsed.data.discordUsername ?? parsed.data.telegramUsername;
+      const username = p.username(data);
       if (username && username !== connection.telegram_username) {
         try {
-          updateConnectionUsername(parsed.data.chatId, username, "discord");
+          updateConnectionUsername(data.chatId, username, platform);
         } catch (err) {
-          console.error("discord username sync failed", err);
+          console.error(`${platform} username sync failed`, err);
         }
       }
       let mediaPath: string | null = null;
-      let size = parsed.data.size ?? null;
-      if (parsed.data.fileBase64 && parsed.data.kind !== "text") {
+      let size = data.size ?? null;
+      if (data.fileBase64 && data.kind !== "text") {
         try {
-          const buf = Buffer.from(parsed.data.fileBase64, "base64");
+          const buf = Buffer.from(data.fileBase64, "base64");
           if (buf.length > config.mediaMaxBytes) {
             res.status(413).json({ error: "file too large for bot api" });
             return;
           }
           const id = randomUUID();
-          const filename = `${id}-${safeFilename(parsed.data.filename ?? "file")}`;
+          const filename = `${id}-${safeFilename(data.filename ?? "file")}`;
           const dir = path.join(config.mediaDir, connection.id);
           fs.mkdirSync(dir, { recursive: true });
           fs.writeFileSync(path.join(dir, filename), buf);
@@ -84,14 +117,14 @@ export function createDiscordRouter(): Router {
         saved = insertMessage({
           id,
           connectionId: connection.id,
-          sender: "discord",
-          kind: parsed.data.kind,
-          text: parsed.data.text?.slice(0, 4000) ?? null,
+          sender: p.sender,
+          kind: data.kind,
+          text: data.text?.slice(0, 4000) ?? null,
           mediaPath,
-          mime: parsed.data.mime ?? null,
+          mime: data.mime ?? null,
           size,
           createdAt: Date.now(),
-          discordMsgId: parsed.data.platformMsgId ?? parsed.data.discordMessageId ?? null,
+          [p.msgIdColumn]: p.msgId(data) ?? null,
         });
       } catch (err) {
         const code = (err as { code?: unknown })?.code;
@@ -104,8 +137,8 @@ export function createDiscordRouter(): Router {
       const message = toChatMessage(saved);
       emitToConnection(connection.id, "message:new", message);
       res.status(201).json({ message });
-    },
-  );
+    });
+  }
 
   return router;
 }

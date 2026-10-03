@@ -16,7 +16,7 @@ import {
   markWired,
   usernameOf,
 } from "./wired.js";
-import { createLinkedHandler, createNotifyHandler, handleDisconnect } from "./disconnect.js";
+import { handleDisconnect, handleNotify } from "./disconnect.js";
 
 const log = createLogger("whatsapp");
 
@@ -40,6 +40,31 @@ function fmtDate(iso: string | null | undefined): string {
 let waClient: AnyClient | null = null;
 let waActive = false;
 let waAccount: string | null = null;
+let reconnecting = false;
+let stopReconnect = false;
+
+// Disconnect reasons zapo classifies as fatal (docs: errors & disconnects).
+// These need re-pairing or a zapo upgrade; retrying connect() only spins.
+const FATAL_DISCONNECT_REASONS = new Set([
+  "stream_error_replaced",
+  "stream_error_device_removed",
+  "stream_error_force_logout",
+  "failure_not_authorized",
+  "failure_banned",
+  "failure_locked",
+  "failure_client_too_old",
+  "failure_bad_user_agent",
+  "primary_identity_key_change",
+]);
+
+function isFatalClose(event: any): boolean {
+  return Boolean(event?.isLogout) || FATAL_DISCONNECT_REASONS.has(event?.reason);
+}
+
+function describeClose(event: any): string {
+  const reason = event?.reason ?? "unknown";
+  return event?.code != null ? `${reason} (code ${event.code})` : String(reason);
+}
 
 function readBody(req: IncomingMessage, limit = 35_000_000): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -89,7 +114,7 @@ async function handleSend(req: IncomingMessage, res: ServerResponse): Promise<vo
     if (!chatId) throw new Error("bad chatId");
     const kind = typeof body.kind === "string" ? body.kind : "text";
     const text = typeof body.text === "string" ? body.text.slice(0, 4000) : "";
-    let result: any = null;
+    let result: { id?: unknown } | null = null;
     if (kind === "text" || typeof body.fileBase64 !== "string" || !body.fileBase64) {
       result = await waClient.message.send(chatId, text || "(media)");
     } else {
@@ -109,8 +134,7 @@ async function handleSend(req: IncomingMessage, res: ServerResponse): Promise<vo
         result = await waClient.message.send(chatId, { type: "document", media, mimetype: mime, fileName: filename, caption: text });
       }
     }
-    const id = result && typeof result.id === "string" ? result.id : null;
-    res.writeHead(200, { "content-type": "application/json" });
+    const id = result && typeof result.id === "string" ? result.id : null;    res.writeHead(200, { "content-type": "application/json" });
     res.end(JSON.stringify({ ok: true, whatsappMessageId: id, id }));
   } catch (err) {
     log.error("send failed", err);
@@ -140,7 +164,7 @@ async function handleDelete(req: IncomingMessage, res: ServerResponse): Promise<
         await waClient.message.send(chatId, {
           type: "revoke",
           target: { remoteJid: chatId, id: msgId, fromMe: true },
-        } as any);
+        });
       } catch (err) {
         log.error("revoke failed", err);
       }
@@ -221,6 +245,7 @@ async function handleTextCommand(chatId: string, raw: string): Promise<boolean> 
 }
 
 async function startClient(): Promise<void> {
+  stopReconnect = false;
   const status = sessionStatus(whatsappConfig.session);
   if (!status.active) {
     waActive = false;
@@ -266,14 +291,24 @@ async function startClient(): Promise<void> {
       }
       if (event?.status === "close") {
         waActive = false;
-        if (event?.isLogout) {
-          log.error("logged out on WhatsApp. Re-pair required: session:add");
+        if (event?.reason === "client_disconnected") return;
+        if (isFatalClose(event)) {
+          stopReconnect = true;
           waClient = null;
+          if (event?.isLogout) log.error("logged out on WhatsApp. Re-pair required: session:add");
+          else log.error(`fatal disconnect (${describeClose(event)}). Not reconnecting; fix and restart (re-pair or upgrade zapo).`);
           return;
         }
-        log.warn(`disconnected (${event?.reason ?? "unknown"}). Reconnecting with backoff.`);
-        void reconnectWithBackoff();
+        log.warn(`disconnected (${describeClose(event)}). Reconnecting with backoff.`);
+        void connectWithBackoff(client, "session");
       }
+    });
+    client.on("stream_failure", (event: any) => {
+      const code = event?.failureCode != null ? `, code ${event.failureCode}` : "";
+      log.warn(`stream failure (${event?.failureReason ?? "unknown"}${code})`);
+    });
+    client.on("stanza_error", (event: any) => {
+      log.warn(`stanza error ${event?.code ?? "?"}: ${event?.text ?? "no detail"}`);
     });
     client.on("message", (event: any) => {
       void (async () => {
@@ -305,36 +340,45 @@ async function startClient(): Promise<void> {
       })();
     });
 
-    await client.connect();
-    waActive = true;
+    if (await connectWithBackoff(client, "boot")) {
+      waActive = true;
+    } else {
+      waActive = false;
+      waClient = null;
+      log.warn("WhatsApp inactive (connect failed). Pairing + /health stay up.");
+    }
   } catch (err) {
     waActive = false;
     waClient = null;
-    log.error("WhatsApp inactive (connect failed). Pair again with session:add.", err);
+    log.error("WhatsApp inactive (client init failed). Pair again with session:add.", err);
   }
 }
 
-let reconnectAttempt = 0;
-async function reconnectWithBackoff(): Promise<void> {
-  if (!waClient || reconnectAttempt > 10) {
-    if (reconnectAttempt > 10) log.error("giving up reconnect after 10 attempts. Restart service to retry.");
-    return;
-  }
-  const delayMs = Math.min(30_000, 1_000 * 2 ** reconnectAttempt);
-  reconnectAttempt += 1;
-  log.warn(`reconnecting in ${delayMs}ms (attempt ${reconnectAttempt})`);
-  await new Promise((r) => setTimeout(r, delayMs));
+const MAX_CONNECT_ATTEMPTS = 10;
+
+/** Single-flight connect loop with exponential backoff (zapo docs: reconnection guide). */
+async function connectWithBackoff(client: AnyClient, phase: "boot" | "session"): Promise<boolean> {
+  if (reconnecting) return false;
+  reconnecting = true;
   try {
-    await waClient.connect();
-    reconnectAttempt = 0;
-  } catch (err) {
-    log.error("reconnect failed", err);
-    void reconnectWithBackoff();
+    for (let attempt = 0; attempt < MAX_CONNECT_ATTEMPTS; attempt++) {
+      if (!waClient || stopReconnect) return false;
+      const delayMs = Math.min(30_000, 1_000 * 2 ** attempt);
+      log.warn(`connecting in ${delayMs}ms (attempt ${attempt + 1}/${MAX_CONNECT_ATTEMPTS}, ${phase})`);
+      await new Promise((r) => setTimeout(r, delayMs));
+      try {
+        await client.connect();
+        return true;
+      } catch (err) {
+        log.error("connect failed", err);
+      }
+    }
+    log.error(`giving up connecting after ${MAX_CONNECT_ATTEMPTS} attempts (${phase}). Restart service to retry.`);
+    return false;
+  } finally {
+    reconnecting = false;
   }
 }
-
-const notifyHandler = createNotifyHandler(null);
-const linkedHandler = createLinkedHandler(null);
 
 const server = createServer((req, res) => {
   void (async () => {
@@ -347,11 +391,11 @@ const server = createServer((req, res) => {
       return;
     }
     if (req.method === "POST" && req.url === "/notify/disconnect") {
-      await createNotifyHandler(waClient)(req, res);
+      await handleNotify(waClient, req, res, "disconnect");
       return;
     }
     if (req.method === "POST" && req.url === "/notify/linked") {
-      await createLinkedHandler(waClient)(req, res);
+      await handleNotify(waClient, req, res, "linked");
       return;
     }
     if (req.method === "GET" && (req.url === "/health" || req.url === "/")) {
@@ -359,8 +403,6 @@ const server = createServer((req, res) => {
       res.end(JSON.stringify({ ok: true, platform: "whatsapp", active: waActive, account: waAccount }));
       return;
     }
-    void notifyHandler;
-    void linkedHandler;
     res.writeHead(404);
     res.end("not found");
   })();
@@ -377,13 +419,15 @@ server.listen(whatsappConfig.port, () => {
   });
 });
 
-process.on("SIGINT", () => {
-  void (async () => {
-    try {
-      await waClient?.disconnect?.();
-    } catch {
-      /* noop */
-    }
-    process.exit(0);
-  })();
-});
+async function shutdown(signal: string): Promise<void> {
+  log.info(`${signal} received; flushing and closing WhatsApp session`);
+  try {
+    await waClient?.disconnect?.();
+  } catch {
+    /* noop */
+  }
+  process.exit(0);
+}
+
+process.on("SIGINT", () => void shutdown("SIGINT"));
+process.on("SIGTERM", () => void shutdown("SIGTERM"));

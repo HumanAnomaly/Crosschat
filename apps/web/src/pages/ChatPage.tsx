@@ -504,7 +504,6 @@ export default function ChatPage() {
                     </div>
                   </div>
                 ) : (
-                  
                   <div className="mt-4 flex justify-center gap-2">
                     <button className="btn btn-primary btn-sm" onClick={() => void handleGenerate()} disabled={pairLoading}>
                       {pairLoading ? "Creating…" : "Generate code"}

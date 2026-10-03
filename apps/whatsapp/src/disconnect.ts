@@ -75,7 +75,7 @@ function readBodyLimited(req: IncomingMessage, limit = 16_384): Promise<string> 
   });
 }
 
-async function handleNotify(
+export async function handleNotify(
   client: AnyClient | null,
   req: IncomingMessage,
   res: ServerResponse,
@@ -98,14 +98,4 @@ async function handleNotify(
     res.writeHead(400);
     res.end("bad request");
   }
-}
-
-export function createNotifyHandler(client: AnyClient | null) {
-  return (req: IncomingMessage, res: ServerResponse): Promise<void> =>
-    handleNotify(client, req, res, "disconnect");
-}
-
-export function createLinkedHandler(client: AnyClient | null) {
-  return (req: IncomingMessage, res: ServerResponse): Promise<void> =>
-    handleNotify(client, req, res, "linked");
 }

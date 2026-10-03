@@ -64,14 +64,9 @@ export function makePairingCode(): string {
   return out;
 }
 
-/** Canonical code normalization used by web, realtime and bot. */
-export function normalizeCode(input: string): string {
-  return input.trim().toUpperCase().replace(/[\s-]+/g, (m) => (m.includes("-") ? "-" : ""));
-}
-
 /**
  * Accept `AB12-CD34`, `ab12cd34`, `ab12 cd34` etc. Returns the canonical
- * `XXXX-XXXX` form or null. All three apps must use this — no local copies.
+ * `XXXX-XXXX` form or null. All three apps must use this; no local copies.
  */
 export function parsePairingCode(input: unknown): string | null {
   if (typeof input !== "string") return null;
@@ -101,12 +96,7 @@ export function normalizeWhatsappUsername(input: unknown): string | null {
   return /^[0-9]{8,15}$/.test(v) ? v : null;
 }
 
-/** Accept either platform handle; Telegram rules first, then Discord. */
-export function normalizePlatformUsername(input: unknown): string | null {
-  return normalizeTelegramUsername(input) ?? normalizeDiscordUsername(input);
-}
-
-/** Shared filename sanitizer — backend media paths must never contain `..`. */
+/** Shared filename sanitizer: backend media paths must never contain `..`. */
 export function safeFilename(name: string): string {
   const base = name.split(/[\\/]/).pop() ?? "";
   const clean = base.replace(/[^a-zA-Z0-9._-]+/g, "_").slice(0, 120);

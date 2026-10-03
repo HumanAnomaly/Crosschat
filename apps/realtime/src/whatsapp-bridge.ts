@@ -1,31 +1,17 @@
 import fs from "node:fs";
 import type { ChatMessage } from "@crosschat/core";
-import { findConnectionById, findMessageById } from "./db.js";
+import { findConnectionById } from "./db.js";
 import { config } from "./env.js";
-import { resolveStoredMediaPath } from "./security.js";
+import { storedFileFor } from "./bridge-files.js";
 
 const MAX_FORWARD_BYTES = 20 * 1024 * 1024;
 
-function storedFileFor(connectionId: string, message: ChatMessage): string | null {
-  if (!message.mediaPath) return null;
-  if (message.mediaPath.startsWith("/media/")) {
-    const id = message.mediaPath.slice("/media/".length).split("/")[0];
-    if (!id) return null;
-    const meta = findMessageById(id);
-    if (!meta?.media_path || meta.connection_id !== connectionId) return null;
-    return resolveStoredMediaPath(meta.media_path);
-  }
-  const abs = resolveStoredMediaPath(message.mediaPath);
-  if (!abs) return null;
-  return abs;
-}
-
 function secret(): string {
-  return (config as { whatsappWebhookSecret?: string }).whatsappWebhookSecret || config.telegramWebhookSecret;
+  return config.whatsappWebhookSecret || config.telegramWebhookSecret;
 }
 
 function serviceBase(): string {
-  return (config as { whatsappServiceUrl?: string }).whatsappServiceUrl ?? "http://localhost:8366";
+  return config.whatsappServiceUrl;
 }
 
 export async function notifyWhatsapp(

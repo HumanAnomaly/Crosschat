@@ -37,7 +37,7 @@ export const telegramConfig = {
     : nodeEnv === "production"
       ? "webhook"
       : "polling",
-  appUrlProd: (process.env.APP_URL_PROD ?? "https://crosschat.humananomaly.xyz").replace(/\/+$/, ""),
+  appUrlProd: (process.env.APP_URL_PROD ?? "").replace(/\/+$/, ""),
   realtimeUrl: (process.env.REALTIME_URL ?? "http://localhost:8362").replace(/\/+$/, ""),
   port: num(process.env.TELEGRAM_PORT ?? process.env.BOT_PORT ?? "8364", 8364),
   locale: process.env.TELEGRAM_LOCALE ?? "en",

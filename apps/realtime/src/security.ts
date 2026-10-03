@@ -1,17 +1,24 @@
+import crypto from "node:crypto";
 import path from "node:path";
 import type { NextFunction, Request, Response } from "express";
 import { config } from "./env.js";
 
+/** Length-guarded constant-time compare; an empty expected secret never matches. */
+function sameSecret(a: string, b: string): boolean {
+  const ab = Buffer.from(a);
+  const bb = Buffer.from(b);
+  if (ab.length === 0 || ab.length !== bb.length) return false;
+  return crypto.timingSafeEqual(ab, bb);
+}
+
 export function isBotRequest(req: Request): boolean {
-  const telegram = config.telegramWebhookSecret;
-  const discord = (config as { discordWebhookSecret?: string }).discordWebhookSecret ?? "";
-  const whatsapp = (config as { whatsappWebhookSecret?: string }).whatsappWebhookSecret ?? "";
   const got = req.get("x-bot-secret") ?? "";
   if (!got) return false;
-  if (telegram && got === telegram) return true;
-  if (discord && got === discord) return true;
-  if (whatsapp && got === whatsapp) return true;
-  return false;
+  return (
+    sameSecret(got, config.telegramWebhookSecret) ||
+    sameSecret(got, config.discordWebhookSecret) ||
+    sameSecret(got, config.whatsappWebhookSecret)
+  );
 }
 
 export function resolveStoredMediaPath(storedRel: string): string | null {

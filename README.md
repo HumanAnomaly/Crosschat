@@ -41,7 +41,7 @@ broken session means the service runs inactive (`/health` reports
 (`WHATSAPP_PAIR_WITH_CODE=true`); pass `--qr-only` to scan a QR instead.
 
 > Tips: Discord and Telegram work automatically with just a token
-> (`DISCORD_BOT_TOKEN` / `TELEGRAM_BOT_TOKEN`) — fill in `.env`, build, start,
+> (`DISCORD_BOT_TOKEN` / `TELEGRAM_BOT_TOKEN`): fill in `.env`, build, start,
 > done. Every platform is optional: a missing token or a failed service is
 > treated as not installed, the rest keeps running (`pnpm start` never requires
 > the full set). WhatsApp needs one extra step: a token is not enough, you must
@@ -64,7 +64,7 @@ How chatting works:
 
 1. Link once: generate a code on the web and send it to the bot, or run the
    bot's `newcode`/`/newcode` flow and enter that code on the web.
-2. After linking, just chat normally — every message (text, photos, video,
+2. After linking, just chat normally: every message (text, photos, video,
    documents, voice notes up to 20MB) forwards both ways between the web room
    and the platform DM.
 3. Delete one of YOUR messages to remove it on both sides (web: right-click /

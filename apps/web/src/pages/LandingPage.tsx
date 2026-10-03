@@ -30,8 +30,8 @@ export default function LandingPage() {
                 Welcome to <span className="text-primary">Crosschat</span>
               </h1>
               <p className="mt-4 max-w-md text-base leading-relaxed opacity-70">
-                CrossChat connects you with people on other platforms without 
-                requiring you to use their apps. 
+                CrossChat connects you with people on other platforms without
+                requiring you to use their apps.
                 Pair once, then chat from your browser.
               </p>
               <div className="mt-6 flex flex-wrap items-center gap-2">

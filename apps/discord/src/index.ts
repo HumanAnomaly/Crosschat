@@ -87,7 +87,7 @@ async function reconcile(userId: string): Promise<LinkStatus | null> {
 }
 
 client.on(Events.ClientReady, () => {
-  log.info(`discord service logged in as ${client.user?.tag}\n`);
+  log.info(`discord service logged in as ${client.user?.tag}`);
   const derivedId = client.user?.id ?? "";
   const configuredId = discordConfig.clientId;
   const effectiveId = configuredId || derivedId;

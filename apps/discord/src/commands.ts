@@ -29,6 +29,3 @@ export const slashDefinitions = [
     .setDescription("Close the link on both sides")
     .toJSON(),
 ];
-
-export const slashNames = ["start", "status", "help", "wired", "newcode", "disconnect"] as const;
-export type SlashName = (typeof slashNames)[number];

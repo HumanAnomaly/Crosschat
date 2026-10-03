@@ -10,14 +10,9 @@ import { createConfigRouter } from "./config.js";
 import { createMediaRouter } from "./media.js";
 import { createMessagesRouter } from "./messages.js";
 import { createPairingRouter } from "./pairing.js";
-import { createTelegramRouter } from "./telegram.js";
-import { createDiscordRouter } from "./discord.js";
-import { createWhatsappRouter } from "./whatsapp.js";
+import { createInboundRouters } from "./inbound.js";
 import { attachSocket, setWebMessageHandler } from "./socket.js";
-import { notifyTelegram } from "./telegram-bridge.js";
-import { notifyDiscord } from "./discord-bridge.js";
-import { notifyWhatsapp } from "./whatsapp-bridge.js";
-import { findConnectionById, updateMessagePlatformIds } from "./db.js";
+import { forwardWebMessage } from "./forward.js";
 import { createLogger, printBanner } from "@crosschat/core";
 import { securityHeaders } from "./security.js";
 import { deleteExpiredCodes, deleteExpiredSessions } from "./db.js";
@@ -60,9 +55,7 @@ app.get("/api/health", (_req, res) => {
 app.use(createAuthRouter());
 app.use(createConfigRouter());
 app.use(createPairingRouter());
-app.use(createTelegramRouter());
-app.use(createDiscordRouter());
-app.use(createWhatsappRouter());
+app.use(createInboundRouters());
 app.use(createMediaRouter());
 app.use(createMessagesRouter());
 
@@ -99,54 +92,7 @@ setInterval(() => {
 
 const httpServer = createServer(app);
 attachSocket(httpServer);
-setWebMessageHandler((connectionId, message) => {
-  const connection = findConnectionById(connectionId);
-  if ((connection?.platform_id ?? "telegram") === "discord") {
-    notifyDiscord(connectionId, message)
-      .then((r) => {
-        if (r?.discordMessageId) {
-          try {
-            updateMessagePlatformIds(message.id, { discordMsgId: r.discordMessageId });
-          } catch (err) {
-            log.error("discord id persist failed", err);
-          }
-        }
-      })
-      .catch((err) => {
-        log.error("forward to discord failed", err);
-      });
-    return;
-  }
-  if ((connection?.platform_id ?? "telegram") === "whatsapp") {
-    notifyWhatsapp(connectionId, message)
-      .then((r) => {
-        if (r?.whatsappMessageId) {
-          try {
-            updateMessagePlatformIds(message.id, { whatsappMsgId: r.whatsappMessageId });
-          } catch (err) {
-            log.error("whatsapp id persist failed", err);
-          }
-        }
-      })
-      .catch((err) => {
-        log.error("forward to whatsapp failed", err);
-      });
-    return;
-  }
-  notifyTelegram(connectionId, message)
-    .then((r) => {
-      if (r?.telegramMessageId) {
-        try {
-          updateMessagePlatformIds(message.id, { telegramMsgId: r.telegramMessageId });
-        } catch (err) {
-          log.error("telegram id persist failed", err);
-        }
-      }
-    })
-    .catch((err) => {
-      log.error("forward to telegram failed", err);
-    });
-});
+setWebMessageHandler(forwardWebMessage);
 
 httpServer.listen(config.port, () => {
   printBanner("realtime", [["port", String(config.port)]]);

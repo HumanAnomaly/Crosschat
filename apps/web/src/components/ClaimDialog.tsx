@@ -1,5 +1,6 @@
 import { useEffect, useRef } from "react";
 import { Link2, X } from "lucide-react";
+import { PAIR_TTL_LABEL } from "../format";
 
 const PAIR_CODE_EXAMPLE = "AB12-CD34";
 const PAIR_CODE_INPUT_MAX = 9;
@@ -20,13 +21,13 @@ export default function ClaimDialog({ open, input, setInput, loading, error, onC
   useEffect(() => {
     if (open) ref.current?.showModal();
     else if (ref.current?.open) ref.current.close();
-  }, [open ]);
+  }, [open]);
 
   return (
     <dialog ref={ref} className="modal modal-bottom sm:modal-middle" onClose={onClose}>
       <div className="modal-box bg-base-100 text-base-content">
         <h3 className="text-lg font-bold">Enter pairing code</h3>
-        <p className="py-2 text-sm opacity-70">It looks like {PAIR_CODE_EXAMPLE}. Codes are valid for 5 minutes.</p>
+        <p className="py-2 text-sm opacity-70">It looks like {PAIR_CODE_EXAMPLE}. Codes are valid for {PAIR_TTL_LABEL}.</p>
         {error && (
           <div role="alert" className="alert alert-error mb-2 text-sm">
             <X size={16} />

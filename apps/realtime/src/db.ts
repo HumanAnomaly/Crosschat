@@ -85,6 +85,14 @@ for (const [table, column] of [
   if (!exists) db.exec(`ALTER TABLE ${table} ADD COLUMN ${column} TEXT`);
 }
 
+// The *_msg_id columns come from the ALTER migration above, so their indexes
+// must be created only after it has run (fresh databases included).
+db.exec(`
+CREATE INDEX IF NOT EXISTS idx_messages_tg_msg ON messages_meta(telegram_msg_id);
+CREATE INDEX IF NOT EXISTS idx_messages_dc_msg ON messages_meta(discord_msg_id);
+CREATE INDEX IF NOT EXISTS idx_messages_wa_msg ON messages_meta(whatsapp_msg_id);
+`);
+
 {
   const info = db.prepare("SELECT sql FROM sqlite_master WHERE name = 'connections'").get() as
     | { sql: string }
@@ -467,21 +475,10 @@ export function findMessageByPlatformId(platformMsgId: string, platform: Platfor
     | undefined;
 }
 
-export function findMessagesByPlatformPrefix(prefix: string, platform: PlatformMessageKind): MessageRow[] {
-  const col = platformIdColumn(platform);
-  return db.prepare(`SELECT * FROM messages_meta WHERE ${col} = ? OR ${col} LIKE ?`).all(prefix, `${prefix}:%`) as MessageRow[];
-}
-
 /** All rows carrying a platform id (ids repeat per chat on Telegram). */
 export function findMessagesByPlatformId(platformMsgId: string, platform: PlatformMessageKind): MessageRow[] {
   const col = platformIdColumn(platform);
   return db.prepare(`SELECT * FROM messages_meta WHERE ${col} = ? OR ${col} LIKE ?`).all(platformMsgId, `${platformMsgId}:%`) as MessageRow[];
-}
-
-export function findMessageInConnection(id: string, connectionId: string): MessageRow | undefined {
-  return db.prepare("SELECT * FROM messages_meta WHERE id = ? AND connection_id = ?").get(id, connectionId) as
-    | MessageRow
-    | undefined;
 }
 
 export function deleteMessageById(id: string): MessageRow | undefined {

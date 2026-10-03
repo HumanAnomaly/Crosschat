@@ -1,4 +1,4 @@
-import { memo, useRef } from "react";
+import { memo, useEffect, useRef } from "react";
 import { findPlatform, PLATFORMS, type ChatMessage } from "@crosschat/core";
 import { mediaUrl } from "../api";
 import { formatTime } from "../format";
@@ -79,6 +79,8 @@ export const MessageBubble = memo(function MessageBubble({
       pressTimer.current = null;
     }
   }
+
+  useEffect(() => clearPress, []);
 
   return (
     <div className={`flex w-full ${mine ? "justify-end" : "justify-start"}`}>

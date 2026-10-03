@@ -30,7 +30,8 @@ async function download(url: string, size?: number): Promise<Buffer | null> {
   return buf;
 }
 
-async function postJson(payload: Record<string, unknown>): Promise<PostResult> {  let res: Response;
+async function postJson(payload: Record<string, unknown>): Promise<PostResult> {
+  let res: Response;
   try {
     res = await fetch(`${discordConfig.realtimeUrl}/api/discord/inbound`, {
       method: "POST",
@@ -47,7 +48,8 @@ async function postJson(payload: Record<string, unknown>): Promise<PostResult> {
   return res.ok ? "ok" : "error";
 }
 
-export async function handleInbound(message: Message): Promise<void> {  const chatId = message.author.id;
+export async function handleInbound(message: Message): Promise<void> {
+  const chatId = message.author.id;
   if (!chatId || message.author.bot) return;
   if (!isWired(chatId)) {
     const status = await fetchLinkStatus(chatId);

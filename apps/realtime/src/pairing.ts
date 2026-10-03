@@ -133,14 +133,14 @@ async function notifyBot(linked: boolean, telegramChatId: string, platformId = "
   const isDiscord = platformId === "discord";
   const isWhatsapp = platformId === "whatsapp";
   const base = isDiscord
-    ? (config as { discordServiceUrl?: string }).discordServiceUrl ?? "http://localhost:8365"
+    ? config.discordServiceUrl
     : isWhatsapp
-      ? (config as { whatsappServiceUrl?: string }).whatsappServiceUrl ?? "http://localhost:8366"
+      ? config.whatsappServiceUrl
       : config.telegramServiceUrl;
   const secret = isDiscord
-    ? ((config as { discordWebhookSecret?: string }).discordWebhookSecret || config.telegramWebhookSecret)
+    ? config.discordWebhookSecret || config.telegramWebhookSecret
     : isWhatsapp
-      ? ((config as { whatsappWebhookSecret?: string }).whatsappWebhookSecret || config.telegramWebhookSecret)
+      ? config.whatsappWebhookSecret || config.telegramWebhookSecret
       : config.telegramWebhookSecret;
   if (!secret) return;
   try {

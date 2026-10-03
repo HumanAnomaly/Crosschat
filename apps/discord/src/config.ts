@@ -31,7 +31,6 @@ export const discordConfig = {
   clientId: process.env.DISCORD_CLIENT_ID ?? "",
   guildId: process.env.DISCORD_GUILD_ID ?? "",
   webhookSecret: process.env.DISCORD_WEBHOOK_SECRET ?? process.env.TELEGRAM_WEBHOOK_SECRET ?? "",
-  appUrlProd: (process.env.APP_URL_PROD ?? "https://crosschat.humananomaly.xyz").replace(/\/+$/, ""),
   realtimeUrl: (process.env.REALTIME_URL ?? "http://localhost:8362").replace(/\/+$/, ""),
   port: num(process.env.DISCORD_PORT ?? "8365", 8365),
   locale: process.env.DISCORD_LOCALE ?? process.env.TELEGRAM_LOCALE ?? "en",

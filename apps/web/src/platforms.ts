@@ -20,6 +20,7 @@ export function usePlatforms(): Platform[] {
           resolvePlatforms({
             telegramEntryUrl: cfg.telegramEntryUrl,
             discordEntryUrl: cfg.discordEntryUrl,
+            whatsappEntryUrl: cfg.whatsappEntryUrl,
           }),
         );
       })

@@ -8,9 +8,9 @@ import PlatformIcon from "./PlatformIcon";
 import UserAvatar from "./UserAvatar";
 
 function formatLastActivity(iso: string | null): string {
-  if (!iso) return "—";
+  if (!iso) return "-";
   const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return "—";
+  if (Number.isNaN(d.getTime())) return "-";
   return d.toLocaleString("en-GB", {
     day: "2-digit",
     month: "short",
@@ -21,9 +21,9 @@ function formatLastActivity(iso: string | null): string {
 }
 
 function formatLinkedSince(iso: string | undefined): string {
-  if (!iso) return "—";
+  if (!iso) return "-";
   const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return "—";
+  if (Number.isNaN(d.getTime())) return "-";
   return d.toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" });
 }
 
@@ -163,13 +163,13 @@ export default function PairPanel({
             <div className="flex justify-between gap-2">
               <dt className="opacity-60">Account</dt>
               <dd className="max-w-[60%] truncate font-medium" title={accountName ?? undefined}>
-                {accountName ? `@${accountName}` : "—"}
+                {accountName ? `@${accountName}` : "-"}
               </dd>
             </div>
             <div className="flex justify-between gap-2">
               <dt className="opacity-60">User ID</dt>
               <dd className="max-w-[60%] truncate font-mono text-xs tabular-nums" title={accountId ?? undefined}>
-                {accountId ?? "—"}
+                {accountId ?? "-"}
               </dd>
             </div>
             <div className="flex justify-between gap-2">
@@ -182,16 +182,16 @@ export default function PairPanel({
             </div>
             <div className="flex justify-between gap-2">
               <dt className="opacity-60">From web</dt>
-              <dd className="font-medium tabular-nums">{stats?.stats.fromWeb ?? "—"}</dd>
+              <dd className="font-medium tabular-nums">{stats?.stats.fromWeb ?? "-"}</dd>
             </div>
             <div className="flex justify-between gap-2">
               <dt className="opacity-60">From {platform?.label ?? "platform"}</dt>
               <dd className="font-medium tabular-nums">
                 {platform?.id === "discord"
-                  ? (stats?.stats.fromDiscord ?? "—")
+                  ? (stats?.stats.fromDiscord ?? "-")
                   : platform?.id === "whatsapp"
-                    ? (stats?.stats.fromWhatsapp ?? "—")
-                    : (stats?.stats.fromTelegram ?? "—")}
+                    ? (stats?.stats.fromWhatsapp ?? "-")
+                    : (stats?.stats.fromTelegram ?? "-")}
               </dd>
             </div>
             <div className="flex justify-between gap-2">

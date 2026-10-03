@@ -33,9 +33,9 @@ function t(key: string, vars?: Record<string, string | number>): string {
 }
 
 function fmtDate(iso: string | null | undefined): string {
-  if (!iso) return "—";
+  if (!iso) return "-";
   const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return "—";
+  if (Number.isNaN(d.getTime())) return "-";
   return d.toLocaleString("en-GB", {
     day: "2-digit",
     month: "short",
@@ -49,7 +49,7 @@ function accountOf(status: LinkStatus): string {
   const name = status.user?.name?.trim();
   const email = status.user?.email?.trim();
   if (name && email) return `${name} (${email})`;
-  return name || email || "—";
+  return name || email || "-";
 }
 
 function statusText(status: LinkStatus): string {
@@ -162,7 +162,9 @@ function readBody(req: IncomingMessage, limit = 1_000_000): Promise<string> {
 }
 
 async function handleWebhook(req: IncomingMessage, res: ServerResponse): Promise<void> {
-  if (telegramConfig.webhookSecret && req.headers["x-telegram-bot-api-secret-token"] !== telegramConfig.webhookSecret) {
+  // No secret configured means reject, never accept: an empty-secret bypass
+  // would let anyone forge Telegram updates into the bridge.
+  if (!telegramConfig.webhookSecret || req.headers["x-telegram-bot-api-secret-token"] !== telegramConfig.webhookSecret) {
     res.writeHead(401);
     res.end("unauthorized");
     return;
@@ -226,6 +228,10 @@ server.listen(telegramConfig.port, () => {
       log.error("setMyCommands failed (menu button may miss commands)", err);
     }
     if (telegramConfig.mode === "webhook") {
+      if (!telegramConfig.appUrlProd) {
+        log.error("webhook mode needs APP_URL_PROD; staying in polling-less state");
+        return;
+      }
       try {
         const extra: { secret_token?: string; drop_pending_updates?: boolean } = {
           drop_pending_updates: true,
