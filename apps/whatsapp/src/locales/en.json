@@ -1,0 +1,70 @@
+{
+  "buttons": {
+    "wired": "Wired",
+    "newCode": "New code",
+    "disconnect": "Disconnect"
+  },
+  "start": {
+    "connected": "This chat is already linked to the web. Send status for details.",
+    "hello": "Hi. Send wired to link your web account, or send help for commands."
+  },
+  "status": {
+    "wired": "Linked ✅\nAccount: {account}\nSince: {since}\nMessages: {total} ({fromWeb} from web, {fromWhatsapp} from here)\nLast activity: {last}",
+    "unwired": "Not linked.\nSend wired to link your web account, or send help for commands.\nServer: reachable.",
+    "offlineWired": "Server unreachable, showing last known state: linked.\nThe link may have changed on the other side. Send status again shortly.",
+    "offlineUnwired": "Server unreachable, showing last known state: not linked.\nSend status again shortly."
+  },
+  "help": {
+    "text": "Commands (prefix with /):\n/wired: link this chat (then send the web code OR a Telegram/Discord/WhatsApp code)\n/newcode: show a code to enter on the web OR on another platform\n/status: full link info\n/menu: show this list again\n/disconnect: close the link on both sides\n/delete: reply to one of YOUR messages with this command to delete it on both sides\n/anon: chat with a random stranger\n/next: skip to the next stranger\n/stop: leave the stranger chat\n\nPairing codes (XXXX-XXXX) need no prefix. Anything else is forwarded to the linked peer as chat.\n\nOne WhatsApp sender links to exactly one web account OR one platform peer. Either side can disconnect."
+  },
+  "wired": {
+    "alreadyLinked": "This account is already linked to the web.",
+    "askCode": "Send a code here (example WXYZ-1234): a web code, or a code from Telegram/Discord/WhatsApp. Or send newcode to show a code here.",
+    "codeMessage": "Your code: {code}\nValid for {minutes} minutes. Enter it on the web OR on Telegram/Discord/WhatsApp to link.",
+    "linked": "Linked to {account} on the web ✅\nEverything here is forwarded both ways. Send status for details.",
+    "unknownAccount": "your web account",
+    "invalidFormat": "Wrong code format. A valid example is WXYZ-1234.",
+    "unknownCode": "Unknown or expired code. Get a fresh code on the web and send it again here.",
+    "rejectedCode": "The code was rejected. Get a fresh code on the web and send it again here."
+  },
+  "disconnect": {
+    "done": "Disconnected on both sides. The web room is closed too. Send wired to link again any time.",
+    "fromWeb": "Disconnected from the web. This chat no longer receives web messages. Send wired to link again.",
+    "incomplete": "Could not reach the server, so the link may still be active. Try disconnect again."
+  },
+  "media": {
+    "notLinked": "This account is not linked yet. Send wired first.",
+    "linkExpired": "This link was closed on the other side. Send wired to link again.",
+    "tooBigDownload": "That file is over 20MB, it cannot be downloaded.",
+    "tooBigForward": "That file is over 50MB, it cannot be forwarded.",
+    "downloadFailed": "Could not download that file from WhatsApp. Please resend it.",
+    "unsupported": "That message type is not supported yet.",
+    "backendDown": "The backend is unreachable. Your message is kept, try sending it again shortly.",
+    "inactiveSession": "WhatsApp session is not active on the server. Ask the owner to run session:add and scan again."
+  },
+  "common": {
+    "rateLimited": "Too many requests. Wait a moment and try again.",
+    "rateLimitedAttempts": "Too many attempts. Wait a moment and try again.",
+    "backendDown": "The backend is unreachable. Try again shortly."
+  },
+  "delete": {
+    "done": "Deleted on both sides. The web copy is gone too.",
+    "notFound": "That message is not in the bridged room (it may already be deleted).",
+    "forbidden": "You can only delete your own messages."
+  },
+  "anon": {
+    "searching": "Looking for a stranger… I'll ping you the moment someone is found. Send stop to cancel.",
+    "found": "Partner found! Session {session} · they are on {partner}.\nAnything you send now goes to them anonymously. Send next for someone new, stop to quit.",
+    "already": "You are already chatting with a stranger (session {session} · {partner}). Send next for someone new, stop to quit.",
+    "ended": "The stranger left (session {session}). Send anon to find someone new.",
+    "stopped": "Anon chat off. Your messages stay on both devices. Send anon to start again.",
+    "cancelled": "Search cancelled. Send anon to try again later.",
+    "notInQueue": "You are not in anon chat. Send anon to find a stranger.",
+    "busy": "You are in another chat. Disconnect it first, then send anon.",
+    "peerTelegram": "Telegram",
+    "peerDiscord": "Discord",
+    "peerWhatsapp": "WhatsApp",
+    "peerWeb": "Web",
+    "peerUnknown": "another platform"
+  }
+}

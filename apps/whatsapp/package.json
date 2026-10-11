@@ -1,0 +1,29 @@
+{
+  "name": "@crosschat/whatsapp",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "build": "tsc -p tsconfig.json",
+    "start": "node dist/index.js",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "session:add": "tsx src/session-cli.ts add",
+    "session:list": "tsx src/session-cli.ts list",
+    "session:status": "tsx src/session-cli.ts status",
+    "session:remove": "tsx src/session-cli.ts remove"
+  },
+  "dependencies": {
+    "@crosschat/core": "workspace:*",
+    "@zapo-js/store-sqlite": "^1.0.0",
+    "dotenv": "^16.4.5",
+    "qrcode-terminal": "^0.12.0",
+    "zapo-js": "^1.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.7.4",
+    "@types/qrcode-terminal": "^0.12.0",
+    "tsx": "^4.19.1",
+    "typescript": "^5.9.2"
+  }
+}

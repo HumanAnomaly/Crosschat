@@ -1,0 +1,192 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+    -webkit-font-smoothing: antialiased;
+    /* Reserve scrollbar space so opening a <dialog> doesn't shift the page */
+    scrollbar-gutter: stable;
+  }
+
+  [data-theme="crosschat"] {
+    --cc-primary-hover: #09090b;
+    --cc-text-secondary: #64748b;
+    --cc-text-muted: #94a3b8;
+    --cc-border: #e2e8f0;
+  }
+
+  [data-theme="crosschat-dark"] {
+    --cc-primary-hover: #e4e4e7;
+    --cc-text-secondary: #a1a1aa;
+    --cc-text-muted: #71717a;
+    --cc-border: #27272a;
+  }
+
+  body {
+    @apply bg-base-200 text-base-content;
+    font-family: theme("fontFamily.sans");
+    font-feature-settings: "cv11", "ss01";
+  }
+
+  ::placeholder {
+    @apply text-base-content/50;
+  }
+
+  :focus-visible {
+    @apply outline-2 outline-offset-2 outline-primary;
+  }
+}
+
+@layer components {
+  .btn-primary,
+  .btn-primary:hover,
+  .btn-primary:active,
+  .btn-primary:focus-visible {
+    @apply text-primary-content;
+    background-color: var(--cc-primary-hover);
+    border-color: var(--cc-primary-hover);
+  }
+
+  .btn-primary:disabled {
+    @apply text-primary-content;
+    opacity: 0.4;
+  }
+
+  .btn-primary svg,
+  .btn-primary .loading-spinner {
+    flex-shrink: 0;
+  }
+
+  /* Soften outline strokes: full currentColor is too harsh in both themes */
+  .btn-outline {
+    border-color: color-mix(in oklab, currentColor 30%, transparent);
+  }
+  .btn-outline:hover {
+    border-color: color-mix(in oklab, currentColor 55%, transparent);
+  }
+
+  /* Chat bubbles: guarantee readable contrast in both themes */
+  .chat-bubble-primary {
+    @apply bg-primary text-primary-content;
+  }
+
+  [data-theme="crosschat"] .chat-bubble:not(.chat-bubble-primary) {
+    @apply bg-[#F1F5F9] text-[#0F172A];
+  }
+
+  [data-theme="crosschat-dark"] .chat-bubble:not(.chat-bubble-primary) {
+    @apply bg-[#18181B] text-[#FAFAFA];
+  }
+
+  /* Keep message links visible inside bubbles */
+  .chat-bubble .link {
+    @apply text-inherit underline;
+  }
+
+  /* Single scroll area for the chat: thin, stable, no layout shift */
+  .chat-scroll {
+    scrollbar-width: thin;
+    scrollbar-gutter: stable;
+    overscroll-behavior: contain;
+  }
+
+  .chat-scroll::-webkit-scrollbar {
+    width: 8px;
+  }
+
+  .chat-scroll::-webkit-scrollbar-thumb {
+    @apply bg-base-content/20 rounded-full;
+  }
+
+  .chat-scroll::-webkit-scrollbar-track {
+    background: transparent;
+  }
+}
+
+/* Chat motion: keyframe animations (the global transition kill-switch below
+   does not affect animations, so theme switching stays instant). */
+@keyframes cc-msg-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes cc-drawer-in {
+  from {
+    opacity: 0;
+    transform: translateX(-14px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes cc-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes cc-pop-in {
+  from {
+    opacity: 0;
+    transform: scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@layer components {
+  .msg-enter {
+    animation: cc-msg-in 0.18s ease-out both;
+  }
+
+  .drawer-enter {
+    animation: cc-drawer-in 0.22s cubic-bezier(0.32, 0.72, 0, 1) both;
+  }
+
+  .backdrop-enter {
+    animation: cc-fade-in 0.18s ease-out both;
+  }
+
+  .pop-in {
+    animation: cc-pop-in 0.16s ease-out both;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .msg-enter,
+    .drawer-enter,
+    .backdrop-enter,
+    .pop-in {
+      animation: none;
+    }
+  }
+}
+*,
+*::before,
+*::after {
+  transition: none !important;
+}
+
+/* No button motion: daisyUI pops buttons on load and fades them on theme change. */
+.btn {
+  animation: none;
+  transition: none;
+}
+
+.btn:active:hover,
+.btn:active:focus {
+  transform: none;
+}
